@@ -1,0 +1,24 @@
+# 依赖目录
+node_modules/
+frontend/node_modules/
+
+# 构建产物
+frontend/dist/
+frontend/android/
+frontend/ios/
+frontend/www/
+
+# Capacitor 相关
+frontend/.capacitor/
+frontend/.vscode/
+
+# IDE 及系统文件
+.vscode/
+.idea/
+*.user
+*.suo
+*.log
+.DS_Store
+Thumbs.db
+
+# 其他不应提交的临时文件
