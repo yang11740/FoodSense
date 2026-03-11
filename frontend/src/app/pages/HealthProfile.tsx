@@ -1,11 +1,9 @@
 import { User, Target, History, Edit2, AlertCircle } from 'lucide-react';
 import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
-import { useState } from 'react';
+import HumanModel from '@/app/components/3d/HumanModel';
 
 export default function HealthProfile() {
-  const [rotationY, setRotationY] = useState(0);
-
   const userData = {
     name: '张三',
     age: 35,
@@ -21,11 +19,6 @@ export default function HealthProfile() {
         { area: '睡眠', status: 'caution', description: '睡眠不足' }
       ]
     }
-  };
-
-  const handleModelDrag = (e: React.MouseEvent) => {
-    const sensitivity = 0.5;
-    setRotationY(prev => prev + e.movementX * sensitivity);
   };
 
   return (
@@ -49,50 +42,8 @@ export default function HealthProfile() {
           </div>
 
           {/* 3D模型展示区域 */}
-          <div 
-            className="relative aspect-[3/4] bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing shadow-inner"
-            onMouseMove={handleModelDrag}
-          >
-            {/* 背景网格效果 */}
-            <div className="absolute inset-0 opacity-10" style={{
-              backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
-              backgroundSize: '20px 20px'
-            }}></div>
-
-            {/* 简化的3D人体模型 */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div 
-                className="relative w-32 h-80 transition-transform duration-300 ease-out"
-                style={{ 
-                  transform: `perspective(1000px) rotateY(${rotationY}deg)`,
-                  transformStyle: 'preserve-3d'
-                }}
-              >
-                {/* 头部 */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 bg-gradient-to-br from-blue-200 to-blue-300 rounded-full border-2 border-blue-400 shadow-lg"></div>
-                
-                {/* 躯干 */}
-                <div className="absolute top-16 left-1/2 -translate-x-1/2 w-24 h-32 bg-gradient-to-br from-blue-200 to-blue-300 rounded-2xl border-2 border-blue-400 shadow-lg">
-                  {/* 腹部高亮区域 - 表示脂肪偏高 */}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-20 h-16 bg-gradient-to-br from-orange-300 to-orange-400 rounded-xl border-2 border-orange-500 opacity-80 animate-pulse shadow-lg">
-                    <div className="absolute inset-0 bg-orange-400 rounded-xl opacity-30 blur-sm"></div>
-                  </div>
-                </div>
-                
-                {/* 手臂 */}
-                <div className="absolute top-20 left-0 w-6 h-24 bg-gradient-to-b from-blue-200 to-blue-300 rounded-full border-2 border-blue-400 shadow-md"></div>
-                <div className="absolute top-20 right-0 w-6 h-24 bg-gradient-to-b from-blue-200 to-blue-300 rounded-full border-2 border-blue-400 shadow-md"></div>
-                
-                {/* 腿部 */}
-                <div className="absolute top-48 left-6 w-8 h-32 bg-gradient-to-b from-blue-200 to-blue-300 rounded-full border-2 border-blue-400 shadow-md"></div>
-                <div className="absolute top-48 right-6 w-8 h-32 bg-gradient-to-b from-blue-200 to-blue-300 rounded-full border-2 border-blue-400 shadow-md"></div>
-              </div>
-            </div>
-
-            {/* 拖动提示 */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-600 bg-white/90 px-4 py-2 rounded-full shadow-md backdrop-blur-sm">
-              拖动旋转查看
-            </div>
+          <div className="relative aspect-[3/4] rounded-lg overflow-hidden shadow-inner">
+            <HumanModel />
           </div>
 
           {/* 状态标注 */}
