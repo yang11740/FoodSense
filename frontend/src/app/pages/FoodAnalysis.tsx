@@ -1,181 +1,288 @@
-import { ArrowLeft, AlertCircle } from 'lucide-react';
-import { Card } from '@/app/components/ui/card';
+import { useMemo, useState } from 'react';
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
-import { Progress } from '@/app/components/ui/progress';
-import DisclaimerNote from '@/app/components/DisclaimerNote';
-import NutritionChart from '@/app/components/NutritionChart';
+import { Card } from '@/app/components/ui/card';
+import type { RecipeRecord } from '@/app/types/food';
 
-export default function FoodAnalysis() {
-  const foodData = {
-    name: '红烧肉',
-    cookingMethod: '红烧',
-    ingredients: ['五花肉', '冰糖', '酱油', '料酒', '八角', '桂皮'],
-    nutrition: {
-      carbs: 15,
-      protein: 25,
-      fat: 60
+const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+const pad = (value: number) => value.toString().padStart(2, '0');
+const toDateKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+const getRecommendationTone = (recommendation: RecipeRecord['recommendation']) => {
+  switch (recommendation) {
+    case 'recommended':
+      return {
+        label: '比较适合',
+        badge: 'bg-[#F0FBEF] text-[#15803D] border-[#BDEFC3]',
+        panel: 'bg-[#F0FBEF] text-[#15803D] border-[#BDEFC3]'
+      };
+    case 'caution':
+      return {
+        label: '建议少量',
+        badge: 'bg-[#FFF7E6] text-[#B7791F] border-[#FFD88A]',
+        panel: 'bg-[#FFF7E6] text-[#B7791F] border-[#FFD88A]'
+      };
+    case 'not-recommended':
+      return {
+        label: '建议少量',
+        badge: 'bg-[#FFF7E6] text-[#B7791F] border-[#FFD88A]',
+        panel: 'bg-[#FFF1F1] text-[#D94A4A] border-[#FFC6C6]'
+      };
+  }
+};
+
+const getMacroBreakdown = (record: RecipeRecord) => {
+  const carbsCalories = record.carbs * 4;
+  const proteinCalories = record.protein * 4;
+  const fatCalories = record.fat * 9;
+  const total = Math.max(carbsCalories + proteinCalories + fatCalories, 1);
+
+  return [
+    {
+      label: '碳水',
+      grams: record.carbs,
+      color: '#8CC8F2',
+      percent: Math.round((carbsCalories / total) * 100)
     },
-    calorieLevel: '高热量 (约400-500千卡/100克)',
-    allergens: ['无明显过敏原'],
-    recommendation: {
-      level: 'not-recommended',
-      label: '不推荐食用',
-      reasons: [
-        '脂肪含量过高，占比达60%',
-        '热量密度较大，不利于体重管理',
-        '含糖量较高，不适合控糖需求'
-      ]
+    {
+      label: '蛋白质',
+      grams: record.protein,
+      color: '#8DDB9C',
+      percent: Math.round((proteinCalories / total) * 100)
+    },
+    {
+      label: '脂肪',
+      grams: record.fat,
+      color: '#F6C985',
+      percent: Math.round((fatCalories / total) * 100)
     }
+  ];
+};
+
+interface FoodAnalysisProps {
+  recipeRecords: RecipeRecord[];
+}
+
+export default function FoodAnalysis({ recipeRecords }: FoodAnalysisProps) {
+  const today = new Date(2026, 5, 4);
+  const [visibleMonth, setVisibleMonth] = useState(new Date(2026, 5, 1));
+  const [selectedDate, setSelectedDate] = useState(toDateKey(today));
+  const [expandedId, setExpandedId] = useState<string | null>('2026-06-04-lunch');
+
+  const calendarDays = useMemo(() => {
+    const year = visibleMonth.getFullYear();
+    const month = visibleMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const mondayOffset = (firstDay + 6) % 7;
+    return [
+      ...Array.from({ length: mondayOffset }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, index) => new Date(year, month, index + 1))
+    ];
+  }, [visibleMonth]);
+
+  const selectedRecords = recipeRecords.filter((record) => record.date === selectedDate);
+  const selectedDateLabel = selectedDate.replace(/-/g, '.');
+
+  const changeMonth = (offset: number) => {
+    setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* 顶部导航 */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-4 py-4 flex items-center gap-3">
-          <button className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
-          </button>
-          <h1 className="text-lg text-gray-900">菜品营养分析</h1>
+    <div className="min-h-screen bg-[linear-gradient(180deg,#DDFCD6_0%,#F7FFF4_42%,#F3FAF0_100%)] pb-28">
+      <div className="px-5 pt-6">
+        <p className="text-sm font-semibold text-[#4BAE5F]">知膳 FoodSense</p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[28px] font-semibold leading-none tracking-normal text-[#1D2A22]">
+              我的食谱日历
+            </h1>
+            <Sparkles className="h-6 w-6 text-[#1D2A22]" strokeWidth={2} />
+          </div>
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-4">
-        {/* 菜品图片 */}
-        <Card className="overflow-hidden bg-white shadow-sm">
-          <div className="aspect-video bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
-            <div className="text-center p-6">
-              <p className="text-gray-500 text-sm">菜品图片</p>
-              <p className="text-2xl mt-2">{foodData.name}</p>
+      <div className="px-5 py-5 space-y-5">
+        <Card className="rounded-[30px] border border-[#BDEFC3] bg-[#FFFDF7] p-5 shadow-[0_12px_30px_rgba(76,203,99,0.14)]">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-[#1D2A22]">
+              <CalendarDays className="h-6 w-6" strokeWidth={2.1} />
+              <span className="text-[21px] font-semibold leading-none">
+                {visibleMonth.getFullYear()} 年 {pad(visibleMonth.getMonth() + 1)} 月
+              </span>
             </div>
-          </div>
-        </Card>
-
-        {/* 基本信息 */}
-        <Card className="p-5 bg-white shadow-sm">
-          <h2 className="text-lg text-gray-900 mb-3">识别结果</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">菜品名称</span>
-              <span className="text-gray-900">{foodData.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">烹饪方式</span>
-              <span className="text-gray-900">{foodData.cookingMethod}</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* 主要食材 */}
-        <Card className="p-5 bg-white shadow-sm">
-          <h2 className="text-lg text-gray-900 mb-3">主要食材</h2>
-          <div className="flex flex-wrap gap-2">
-            {foodData.ingredients.map((ingredient, index) => (
-              <Badge key={index} variant="outline" className="bg-gray-50">
-                {ingredient}
-              </Badge>
-            ))}
-          </div>
-        </Card>
-
-        {/* 营养结构 */}
-        <Card className="p-5 bg-white shadow-sm">
-          <h2 className="text-lg text-gray-900 mb-4">营养结构分析</h2>
-          
-          {/* 饼图可视化 */}
-          <div className="mb-6">
-            <NutritionChart data={foodData.nutrition} />
-          </div>
-
-          <div className="space-y-4">
-            {/* 碳水化合物 */}
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-600">碳水化合物</span>
-                <span className="text-sm text-blue-700">{foodData.nutrition.carbs}%</span>
-              </div>
-              <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-500"
-                  style={{ width: `${foodData.nutrition.carbs}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* 蛋白质 */}
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-600">蛋白质</span>
-                <span className="text-sm text-green-700">{foodData.nutrition.protein}%</span>
-              </div>
-              <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="absolute top-0 left-0 h-full bg-green-500 transition-all duration-500"
-                  style={{ width: `${foodData.nutrition.protein}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* 脂肪 */}
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-600">脂肪</span>
-                <span className="text-sm text-red-600">{foodData.nutrition.fat}%</span>
-              </div>
-              <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="absolute top-0 left-0 h-full bg-red-500 transition-all duration-500"
-                  style={{ width: `${foodData.nutrition.fat}%` }}
-                ></div>
-              </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => changeMonth(-1)}
+                className="grid h-9 w-9 place-items-center rounded-full bg-[#F0FBEF] text-[#15803D]"
+                aria-label="上个月"
+              >
+                <ChevronLeft className="h-5 w-5" strokeWidth={2} />
+              </button>
+              <button
+                onClick={() => changeMonth(1)}
+                className="grid h-9 w-9 place-items-center rounded-full bg-[#F0FBEF] text-[#15803D]"
+                aria-label="下个月"
+              >
+                <ChevronRight className="h-5 w-5" strokeWidth={2} />
+              </button>
             </div>
           </div>
 
-          {/* 热量水平 */}
-          <div className="mt-5 pt-4 border-t border-gray-100">
-            <div className="flex justify-between">
-              <span className="text-gray-600">热量水平</span>
-              <span className="text-red-600">{foodData.calorieLevel}</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* 过敏原提示 */}
-        <Card className="p-5 bg-white shadow-sm">
-          <h2 className="text-lg text-gray-900 mb-3">过敏原提示</h2>
-          <div className="flex flex-wrap gap-2">
-            {foodData.allergens.map((allergen, index) => (
-              <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                {allergen}
-              </Badge>
-            ))}
-          </div>
-        </Card>
-
-        {/* 饮食决策建议 */}
-        <Card className="p-5 bg-red-50 border-red-200 shadow-sm">
-          <div className="flex items-start gap-3 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h2 className="text-lg text-red-900 mb-1">{foodData.recommendation.label}</h2>
-              <p className="text-sm text-red-700">建议您谨慎考虑以下风险因素</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 ml-9">
-            {foodData.recommendation.reasons.map((reason, index) => (
-              <div key={index} className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-600 mt-2 flex-shrink-0"></div>
-                <p className="text-sm text-red-800">{reason}</p>
+          <div className="grid grid-cols-7 gap-y-3 text-center">
+            {weekDays.map((day) => (
+              <div key={day} className="text-sm font-medium text-[#7B827D]">
+                {day}
               </div>
             ))}
+
+            {calendarDays.map((date, index) => {
+              if (!date) return <div key={`empty-${index}`} className="h-11" />;
+              const dateKey = toDateKey(date);
+              const isSelected = selectedDate === dateKey;
+              const hasRecord = recipeRecords.some((record) => record.date === dateKey);
+
+              return (
+                <button
+                  key={dateKey}
+                  onClick={() => {
+                    setSelectedDate(dateKey);
+                    setExpandedId(null);
+                  }}
+                  className={`mx-auto grid h-11 w-11 place-items-center rounded-full text-[20px] font-medium transition-colors ${
+                    isSelected
+                      ? 'bg-[#16A34A] text-white'
+                      : 'text-[#111827] hover:bg-[#F0FBEF]'
+                  }`}
+                >
+                  <span>{date.getDate()}</span>
+                  {hasRecord && !isSelected && <span className="mt-[-8px] h-1.5 w-1.5 rounded-full bg-[#4CCB63]" />}
+                </button>
+              );
+            })}
           </div>
         </Card>
 
-        {/* 免责声明 */}
-        <DisclaimerNote 
-          message="分析结果用于饮食风险感知与辅助决策，不构成医疗诊断。最终饮食选择请结合个人实际情况综合判断。"
-        />
+        <div>
+          <div className="mb-3 flex items-center justify-between px-1">
+            <h2 className="text-lg font-semibold text-[#1D2A22]">选中日期食谱</h2>
+            <span className="text-sm font-medium text-[#6B7280]">{selectedDateLabel}</span>
+          </div>
+
+          <div className="space-y-3">
+            {selectedRecords.length === 0 && (
+              <Card className="bg-[#FFFDF7] p-5 text-center">
+                <p className="text-base font-semibold text-[#1D2A22]">这天还没有食谱记录</p>
+                <p className="mt-2 text-sm text-[#6B7280]">拍照识别并添加后，会显示在这里。</p>
+              </Card>
+            )}
+
+            {selectedRecords.map((record) => {
+              const tone = getRecommendationTone(record.recommendation);
+              const expanded = expandedId === record.id;
+              const macroBreakdown = getMacroBreakdown(record);
+              const carbsEnd = macroBreakdown[0].percent;
+              const proteinEnd = carbsEnd + macroBreakdown[1].percent;
+
+              return (
+                <Card key={record.id} className="bg-[#FFFDF7] p-4">
+                  <button
+                    onClick={() => setExpandedId(expanded ? null : record.id)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-[#F5F3FF] text-[#7C3AED] border-[#DDD6FE]">
+                          {record.meal}
+                        </Badge>
+                        <Badge variant="outline" className={tone.badge}>
+                          {tone.label}
+                        </Badge>
+                      </div>
+                      <h3 className="mt-2 text-lg font-semibold text-[#1D2A22]">{record.name}</h3>
+                      {!expanded && (
+                        <p className="mt-1 text-sm text-[#6B7280]">
+                          {record.calories} kcal · 碳水 {record.carbs}g · 蛋白质 {record.protein}g · 脂肪 {record.fat}g
+                        </p>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`h-5 w-5 shrink-0 text-[#6B7280] transition-transform ${expanded ? 'rotate-180' : ''}`}
+                      strokeWidth={2}
+                    />
+                  </button>
+
+                  {expanded && (
+                    <div className="mt-4 space-y-3 border-t border-dashed border-[#DDE6DD] pt-4">
+                      <div className="rounded-[22px] bg-white/80 p-4 shadow-[0_6px_18px_rgba(76,203,99,0.08)]">
+                        <div className="flex items-center gap-5">
+                          <div
+                            className="grid h-[132px] w-[132px] shrink-0 place-items-center rounded-full"
+                            style={{
+                              background: `conic-gradient(${macroBreakdown[0].color} 0% ${carbsEnd}%, ${macroBreakdown[1].color} ${carbsEnd}% ${proteinEnd}%, ${macroBreakdown[2].color} ${proteinEnd}% 100%)`
+                            }}
+                          >
+                            <div className="grid h-[92px] w-[92px] place-items-center rounded-full bg-[#FFFDF7] text-center">
+                              <div>
+                                <p className="text-xs font-medium text-[#6B7280]">摄入热量</p>
+                                <p className="mt-1 text-2xl font-semibold leading-none text-[#1D2A22]">{record.calories}</p>
+                                <p className="mt-1 text-sm font-medium text-[#6B7280]">kcal</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-lg font-semibold text-[#1D2A22]">营养占比</h4>
+                            <div className="mt-3 space-y-2.5">
+                              {macroBreakdown.map((macro) => (
+                                <div key={macro.label} className="grid grid-cols-[14px_1fr_auto] items-center gap-2">
+                                  <span
+                                    className="h-3.5 w-3.5 rounded-[5px]"
+                                    style={{ backgroundColor: macro.color }}
+                                  />
+                                  <span className="truncate text-sm font-medium text-[#1D2A22]">
+                                    {macro.label} {macro.percent}%
+                                  </span>
+                                  <span className="text-sm font-medium text-[#6B7280]">{macro.grams}g</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`rounded-[18px] border p-4 ${tone.panel}`}>
+                        <p className="text-sm font-semibold">分析建议</p>
+                        <p className="mt-1 text-sm leading-6">{record.summary}</p>
+                      </div>
+
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-[#4B5563]">风险/营养来源</p>
+                        <div className="space-y-2">
+                          {record.reasons.map((reason) => (
+                            <div key={reason} className="flex items-start gap-2 rounded-[16px] bg-[#F7FFF4] p-3">
+                              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-[#4CCB63]" />
+                              <p className="text-sm leading-6 text-[#4B5563]">{reason}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {record.tags.map((tag) => (
+                          <Badge key={tag} variant="outline" className="bg-[#EFF7FF] text-[#2563EB] border-[#BFDBFE]">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

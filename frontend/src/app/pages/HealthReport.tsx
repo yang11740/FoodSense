@@ -1,4 +1,4 @@
-import { Bell, TrendingDown, TrendingUp, Calendar, Pill, AlertCircle } from 'lucide-react';
+import { Bell, TrendingDown, TrendingUp, Calendar, Pill, AlertCircle, FileText } from 'lucide-react';
 import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -14,11 +14,18 @@ const riskTrendData = [
 ];
 
 const healthIndicatorData = [
-  { date: '第1周', value: 78 },
-  { date: '第2周', value: 77.5 },
-  { date: '第3周', value: 77 },
-  { date: '第4周', value: 76.5 }
+  { date: '第 1 周', value: 78 },
+  { date: '第 2 周', value: 77.5 },
+  { date: '第 3 周', value: 77 },
+  { date: '第 4 周', value: 76.5 }
 ];
+
+const tooltipStyle = {
+  backgroundColor: '#FFFFFF',
+  border: '1px solid rgba(76, 203, 99, 0.16)',
+  borderRadius: '16px',
+  boxShadow: '0 8px 24px rgba(76, 203, 99, 0.12)'
+};
 
 export default function HealthReport() {
   const reminders = [
@@ -26,227 +33,148 @@ export default function HealthReport() {
       type: 'medication',
       title: '降压药提醒',
       time: '每日 08:00',
-      note: '饭后服用',
-      status: 'active'
+      note: '饭后服用'
     },
     {
       type: 'diet',
-      title: '饮食注意',
+      title: '午餐小提醒',
       time: '每日 12:00',
-      note: '避免高盐高脂食物',
-      status: 'active'
+      note: '今天尽量少选高盐高脂'
     },
     {
       type: 'device',
       title: '血压测量',
       time: '每日 20:00',
-      note: '同步至健康数据',
-      status: 'active'
+      note: '同步到健康数据'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* 顶部标题 */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <h1 className="text-xl text-gray-900">健康提醒与报告</h1>
-          <p className="text-sm text-gray-500 mt-1">阶段性健康分析</p>
+    <div className="min-h-screen bg-[#F7FFF4] pb-24">
+      <div className="sticky top-0 z-10 bg-[#F7FFF4]/90 backdrop-blur">
+        <div className="px-5 py-4">
+          <h1 className="text-xl font-bold text-[#111827]">本周饮食小结</h1>
+          <p className="text-sm text-[#6B7280] mt-1">用一句话看懂最近表现</p>
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-4">
-        {/* 今日提醒 */}
-        <Card className="p-5 bg-white shadow-sm">
+      <div className="px-5 py-5 space-y-4">
+        <Card className="p-5 bg-[#F0FBEF] border-[#BDEFC3]">
+          <div className="flex items-start gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-[#DCF8D8] text-[#15803D]">
+              <FileText className="w-6 h-6" strokeWidth={1.75} />
+            </span>
+            <div>
+              <Badge variant="outline" className="mb-2 bg-white/70 text-[#15803D] border-[#BDEFC3]">
+                本周总结
+              </Badge>
+              <h2 className="text-lg font-bold text-[#15803D]">高盐次数少了 2 次，做得不错</h2>
+              <p className="mt-1 text-sm leading-6 text-[#4B5563]">
+                油炸类还有点多，下周可以控制在 2 次以内，搭配绿叶菜会更稳。
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5 bg-[#FFFDF7]">
           <div className="flex items-center gap-2 mb-4">
-            <Bell className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg text-gray-900">今日提醒</h2>
+            <Bell className="w-5 h-5 text-[#5BA7F7]" strokeWidth={1.75} />
+            <h2 className="text-lg font-bold text-[#111827]">今日提醒</h2>
           </div>
 
           <div className="space-y-3">
-            {reminders.map((reminder, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                {reminder.type === 'medication' && <Pill className="w-5 h-5 text-blue-600 mt-0.5" />}
-                {reminder.type === 'diet' && <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />}
-                {reminder.type === 'device' && <Calendar className="w-5 h-5 text-green-600 mt-0.5" />}
-                
+            {reminders.map((reminder) => (
+              <div key={reminder.title} className="flex items-start gap-3 rounded-[20px] border border-[#BFDBFE] bg-[#EFF7FF] p-3">
+                {reminder.type === 'medication' && <Pill className="w-5 h-5 text-[#5BA7F7] mt-0.5" strokeWidth={1.75} />}
+                {reminder.type === 'diet' && <AlertCircle className="w-5 h-5 text-[#FFB84D] mt-0.5" strokeWidth={1.75} />}
+                {reminder.type === 'device' && <Calendar className="w-5 h-5 text-[#16A34A] mt-0.5" strokeWidth={1.75} />}
+
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-gray-900">{reminder.title}</h3>
-                    <span className="text-xs text-gray-500">{reminder.time}</span>
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <h3 className="font-semibold text-[#111827]">{reminder.title}</h3>
+                    <span className="text-xs text-[#6B7280]">{reminder.time}</span>
                   </div>
-                  <p className="text-sm text-gray-600">{reminder.note}</p>
+                  <p className="text-sm text-[#4B5563]">{reminder.note}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <button className="w-full mt-4 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+          <button className="w-full mt-4 rounded-full border border-[#BDEFC3] bg-[#F0FBEF] px-4 py-2.5 font-semibold text-[#15803D] transition-colors hover:bg-[#DCF8D8]">
             管理提醒设置
           </button>
         </Card>
 
-        {/* 语音与设备提醒 */}
-        <Card className="p-5 bg-white shadow-sm">
-          <h2 className="text-lg text-gray-900 mb-4">智能提醒</h2>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Bell className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-gray-900">语音提醒</p>
-                  <p className="text-sm text-gray-500">定时语音播报</p>
-                </div>
-              </div>
-              <div className="w-12 h-6 bg-green-500 rounded-full relative cursor-pointer">
-                <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-100 rounded-lg">
-                  <Calendar className="w-5 h-5 text-teal-600" />
-                </div>
-                <div>
-                  <p className="text-gray-900">可穿戴设备联动</p>
-                  <p className="text-sm text-gray-500">同步健康数据</p>
-                </div>
-              </div>
-              <div className="w-12 h-6 bg-green-500 rounded-full relative cursor-pointer">
-                <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* 本周健康报告 */}
-        <Card className="p-5 bg-white shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg text-gray-900">本周健康报告</h2>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              2026年第5周
-            </Badge>
-          </div>
-
-          {/* 核心指标 */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-4 bg-green-50 rounded-lg">
+        <Card className="p-5 bg-[#FFFDF7]">
+          <h2 className="text-lg font-bold text-[#111827] mb-4">关键指标</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-[20px] bg-[#F0FBEF] p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="w-4 h-4 text-green-600" />
-                <span className="text-sm text-gray-600">风险次数</span>
+                <TrendingDown className="w-4 h-4 text-[#16A34A]" strokeWidth={1.75} />
+                <span className="text-sm text-[#4B5563]">风险次数</span>
               </div>
-              <p className="text-2xl text-green-600">↓ 35%</p>
-              <p className="text-xs text-gray-500 mt-1">较上周下降</p>
+              <p className="text-2xl font-bold text-[#15803D]">下降 35%</p>
+              <p className="text-xs text-[#6B7280] mt-1">较上周少了一些</p>
             </div>
 
-            <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="rounded-[20px] bg-[#EFF7FF] p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
-                <span className="text-sm text-gray-600">健康评分</span>
+                <TrendingUp className="w-4 h-4 text-[#5BA7F7]" strokeWidth={1.75} />
+                <span className="text-sm text-[#4B5563]">健康评分</span>
               </div>
-              <p className="text-2xl text-blue-600">↑ 12%</p>
-              <p className="text-xs text-gray-500 mt-1">较上周提升</p>
+              <p className="text-2xl font-bold text-[#2563EB]">提升 12%</p>
+              <p className="text-xs text-[#6B7280] mt-1">饮食更稳定了</p>
             </div>
-          </div>
-
-          {/* 饮食风险变化趋势 */}
-          <div className="mb-6">
-            <h3 className="text-gray-900 mb-3">饮食风险变化趋势</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={riskTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#888" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#888" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="risk" 
-                  stroke="#f59e0b" 
-                  strokeWidth={2}
-                  dot={{ fill: '#f59e0b', r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 健康指标变化趋势 */}
-          <div>
-            <h3 className="text-gray-900 mb-3">体重变化趋势（kg）</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={healthIndicatorData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#888" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#888" domain={[75, 79]} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#10b981" 
-                  fill="#d1fae5"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* 总结性文字 */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="text-blue-900 mb-2">本周总结</h4>
-            <p className="text-sm text-blue-800 leading-relaxed">
-              本周饮食风险次数显著下降，健康评分有所提升。体重控制效果良好，建议继续保持低脂低糖饮食习惯，适当增加运动量。
-            </p>
           </div>
         </Card>
 
-        {/* 月度报告入口 */}
-        <Card className="p-5 bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="text-lg text-purple-900 mb-1">本月健康报告</h3>
-              <p className="text-sm text-purple-700">查看详细的月度健康分析</p>
-            </div>
-            <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-              查看
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <button className="flex-1 px-3 py-2 bg-white text-purple-700 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors text-sm">
-              导出数据
-            </button>
-            <button className="flex-1 px-3 py-2 bg-white text-purple-700 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors text-sm">
-              分享报告
-            </button>
-          </div>
+        <Card className="p-5 bg-[#FFFDF7]">
+          <h2 className="text-lg font-bold text-[#111827] mb-4">饮食风险趋势</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={riskTrendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#6B7280" />
+              <YAxis tick={{ fontSize: 12 }} stroke="#6B7280" />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Line
+                type="monotone"
+                dataKey="risk"
+                stroke="#FFB84D"
+                strokeWidth={3}
+                dot={{ fill: '#FFB84D', r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </Card>
 
-        {/* 系统价值说明 */}
-        <Card className="p-4 bg-green-50 border border-green-200">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-green-800">
-              <p className="mb-1">长期健康管理价值</p>
-              <p className="text-green-700">
-                通过持续的饮食分析和健康提醒，帮助您建立更健康的生活习惯，实现长期健康目标。系统提供辅助决策支持，不构成医疗诊断。
-              </p>
-            </div>
-          </div>
+        <Card className="p-5 bg-[#FFFDF7]">
+          <h2 className="text-lg font-bold text-[#111827] mb-4">体重变化趋势（kg）</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={healthIndicatorData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#6B7280" />
+              <YAxis tick={{ fontSize: 12 }} stroke="#6B7280" domain={[75, 79]} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="#4CCB63"
+                fill="#DCF8D8"
+                strokeWidth={3}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-5 bg-[#EFF7FF] border-[#BFDBFE] shadow-[0_4px_14px_rgba(15,23,42,0.06)]">
+          <h3 className="text-lg font-bold text-[#2563EB] mb-1">下周小目标</h3>
+          <p className="text-sm leading-6 text-[#2563EB]">
+            油炸类控制在 2 次以内，晚餐多加一份绿叶菜。目标不用太大，能坚持就很好。
+          </p>
+          <button className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2563EB] transition-colors hover:bg-[#F8FBFF]">
+            查看月度报告
+          </button>
         </Card>
       </div>
     </div>

@@ -11,22 +11,22 @@ export default function DisclaimerNote({
   variant = 'default'
 }: DisclaimerNoteProps) {
   const variantStyles = {
-    default: 'bg-gray-50 border-gray-200 text-gray-600',
-    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-    info: 'bg-blue-50 border-blue-200 text-blue-800'
+    default: 'bg-[#F0FBEF] border-[#BDEFC3] text-[#15803D]',
+    warning: 'bg-[#FFF7E6] border-[#FFD88A] text-[#B7791F]',
+    info: 'bg-[#EFF7FF] border-[#BFDBFE] text-[#2563EB]'
   };
 
   const iconColors = {
-    default: 'text-gray-500',
-    warning: 'text-yellow-600',
-    info: 'text-blue-600'
+    default: 'text-[#16A34A]',
+    warning: 'text-[#FFB84D]',
+    info: 'text-[#5BA7F7]'
   };
 
   return (
-    <Card className={`p-3 border ${variantStyles[variant]}`}>
+    <Card className={`p-4 border shadow-[0_4px_14px_rgba(15,23,42,0.06)] ${variantStyles[variant]}`}>
       <div className="flex gap-2 items-start">
-        <AlertCircle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${iconColors[variant]}`} />
-        <p className="text-xs">{message}</p>
+        <AlertCircle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${iconColors[variant]}`} strokeWidth={1.75} />
+        <p className="text-xs leading-5">{message}</p>
       </div>
     </Card>
   );

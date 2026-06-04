@@ -1,4 +1,4 @@
-import { Camera, Shield, TrendingUp, X } from 'lucide-react';
+import { Camera, ShieldCheck, TrendingUp, X } from 'lucide-react';
 import { Card } from '@/app/components/ui/card';
 
 interface WelcomeScreenProps {
@@ -7,71 +7,65 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onClose }: WelcomeScreenProps) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
-      <Card className="bg-white max-w-md w-full p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/35 p-5 backdrop-blur-sm">
+      <Card className="relative w-full max-w-md bg-[#FFFDF7] p-6">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full text-[#6B7280] transition-colors hover:bg-[#F0FBEF] hover:text-[#15803D]"
         >
-          <X className="w-5 h-5 text-gray-500" />
+          <X className="w-5 h-5" strokeWidth={1.75} />
         </button>
 
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <Camera className="w-8 h-8 text-green-600" />
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full bg-[#DCF8D8] text-[#15803D] shadow-[0_10px_24px_rgba(76,203,99,0.18)]">
+            <span className="text-4xl">菜</span>
           </div>
-          <h2 className="text-2xl text-gray-900 mb-2">欢迎使用食知</h2>
-          <p className="text-gray-600">FoodSense 智能饮食决策辅助系统</p>
-        </div>
-
-        <div className="space-y-4 mb-6">
-          <div className="flex gap-4">
-            <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <Camera className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-gray-900 mb-1">智能识别</h3>
-              <p className="text-sm text-gray-600">
-                拍照即可快速识别菜品，分析营养结构
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <Shield className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-gray-900 mb-1">风险提示</h3>
-              <p className="text-sm text-gray-600">
-                实时提供饮食风险提示，辅助健康决策
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <h3 className="text-gray-900 mb-1">健康管理</h3>
-              <p className="text-sm text-gray-600">
-                长期跟踪健康数据，生成阶段性报告
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-yellow-800">
-            <span className="block mb-1">重要提示：</span>
-            本系统为饮食决策辅助工具，不提供医疗诊断或治疗建议。最终决策请结合个人实际情况综合判断。
+          <h2 className="mb-2 text-2xl font-bold text-[#111827]">欢迎使用食知</h2>
+          <p className="text-[15px] leading-6 text-[#4B5563]">
+            一个会用简单语言解释饮食风险的中式健康小助手。
           </p>
         </div>
 
+        <div className="mb-6 space-y-3">
+          {[
+            {
+              icon: Camera,
+              title: '拍照看风险',
+              text: '拍一下菜品，快速知道今天适不适合多吃。',
+              color: 'bg-[#F0FBEF] text-[#15803D]',
+            },
+            {
+              icon: ShieldCheck,
+              title: '说清楚原因',
+              text: '高盐、高脂、高糖来自哪里，尽量讲得明白一点。',
+              color: 'bg-[#EFF7FF] text-[#2563EB]',
+            },
+            {
+              icon: TrendingUp,
+              title: '慢慢养成习惯',
+              text: '用周报和小目标陪你把饮食调整得更稳。',
+              color: 'bg-[#FFF7E6] text-[#B7791F]',
+            },
+          ].map(({ icon: Icon, title, text, color }) => (
+            <div key={title} className="flex gap-3 rounded-[20px] bg-white/80 p-3">
+              <div className={`grid h-11 w-11 flex-shrink-0 place-items-center rounded-full ${color}`}>
+                <Icon className="w-5 h-5" strokeWidth={1.75} />
+              </div>
+              <div>
+                <h3 className="mb-1 font-semibold text-[#111827]">{title}</h3>
+                <p className="text-sm leading-6 text-[#4B5563]">{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-6 rounded-[20px] border border-[#BFDBFE] bg-[#EFF7FF] p-4 text-sm leading-6 text-[#2563EB]">
+          分析结果用于饮食风险感知与辅助决策，不构成医疗诊断或治疗建议。
+        </div>
+
         <button
           onClick={onClose}
-          className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          className="w-full rounded-full bg-[#4CCB63] px-4 py-3 font-semibold text-white shadow-[0_10px_24px_rgba(76,203,99,0.28)] transition-all hover:bg-[#16A34A] active:scale-[0.98]"
         >
           开始使用
         </button>

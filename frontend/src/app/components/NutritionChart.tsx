@@ -11,9 +11,9 @@ interface NutritionChartProps {
 }
 
 const COLORS = {
-  carbs: '#3b82f6',    // 蓝色 - 碳水化合物
-  protein: '#10b981',  // 绿色 - 蛋白质
-  fat: '#f59e0b'       // 橙色 - 脂肪
+  carbs: '#5BA7F7',
+  protein: '#4CCB63',
+  fat: '#FFB84D'
 };
 
 export default function NutritionChart({ data }: NutritionChartProps) {
@@ -63,8 +63,8 @@ export default function NutritionChart({ data }: NutritionChartProps) {
           <Tooltip 
             contentStyle={{
               backgroundColor: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
+              border: '1px solid rgba(76, 203, 99, 0.16)',
+              borderRadius: '16px',
               padding: '8px 12px'
             }}
           />
@@ -72,7 +72,7 @@ export default function NutritionChart({ data }: NutritionChartProps) {
             verticalAlign="bottom" 
             height={36}
             formatter={(value, entry: any) => (
-              <span className="text-sm text-gray-700">{value} ({entry.payload.value}%)</span>
+              <span className="text-sm text-[#4B5563]">{value} ({entry.payload.value}%)</span>
             )}
           />
         </PieChart>
