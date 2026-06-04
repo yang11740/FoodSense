@@ -44,7 +44,7 @@ export default function MascotChat({ onBack }: MascotChatProps) {
         <img
           src="/mascot/background.png"
           alt=""
-          className="absolute inset-0 h-full w-full object-contain object-center opacity-55 blur-[0.4px]"
+          className="absolute inset-0 h-full w-full object-contain object-center opacity-95 blur-[0.1px]"
         />
         <div className="absolute inset-0 bg-[#F4FFF0]/58 backdrop-blur-[0.8px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(255,255,255,0.34)_0%,rgba(244,255,240,0.66)_58%,rgba(221,252,214,0.78)_100%)]" />
