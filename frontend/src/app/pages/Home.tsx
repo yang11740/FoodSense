@@ -12,7 +12,7 @@ import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import CameraRecognition from '@/app/components/CameraRecognition';
 import LoadingAnalysis from '@/app/components/LoadingAnalysis';
-import type { FoodRecommendation, MealTag, RecipeRecord } from '@/app/types/food';
+import type { CookingTechnique, FoodRecommendation, MealTag, RecipeRecord } from '@/app/types/food';
 
 interface AnalysisResult {
   foodName: string;
@@ -23,6 +23,7 @@ interface AnalysisResult {
   protein: number;
   fat: number;
   ingredients: string[];
+  cookingTechnique: CookingTechnique;
   cookingMethod: string;
 }
 
@@ -110,6 +111,7 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
           protein: 24,
           fat: 39,
           ingredients: ['五花肉', '冰糖', '酱油', '料酒'],
+          cookingTechnique: '红烧',
           cookingMethod: '红烧慢炖'
         },
         {
@@ -121,6 +123,7 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
           protein: 35,
           fat: 11,
           ingredients: ['鲈鱼', '姜丝', '葱段', '蒸鱼豉油'],
+          cookingTechnique: '蒸',
           cookingMethod: '清蒸'
         },
         {
@@ -132,6 +135,7 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
           protein: 21,
           fat: 18,
           ingredients: ['猪里脊', '鸡蛋', '淀粉', '糖醋汁'],
+          cookingTechnique: '油炸',
           cookingMethod: '挂糊油炸后糖醋快炒'
         }
       ];
@@ -156,6 +160,7 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
       protein: analysisResult.protein,
       fat: analysisResult.fat,
       ingredients: analysisResult.ingredients,
+      cookingTechnique: analysisResult.cookingTechnique,
       cookingMethod: analysisResult.cookingMethod,
       recommendation: analysisResult.recommendation,
       summary: config.hint,
