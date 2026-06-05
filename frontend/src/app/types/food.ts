@@ -11,6 +11,8 @@ export type RecipeRecord = {
   carbs: number;
   protein: number;
   fat: number;
+  ingredients: string[];
+  cookingMethod: string;
   recommendation: FoodRecommendation;
   summary: string;
   reasons: string[];

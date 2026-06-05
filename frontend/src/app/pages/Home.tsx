@@ -7,7 +7,7 @@ import {
   Sparkles,
   Utensils
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import CameraRecognition from '@/app/components/CameraRecognition';
@@ -22,6 +22,8 @@ interface AnalysisResult {
   carbs: number;
   protein: number;
   fat: number;
+  ingredients: string[];
+  cookingMethod: string;
 }
 
 interface HomeProps {
@@ -37,11 +39,20 @@ const dailyTargets = {
 
 const mealTags: MealTag[] = ['早餐', '午餐', '晚餐', '夜宵', '零食', '其他'];
 
+const padDatePart = (value: number) => value.toString().padStart(2, '0');
+
+const formatDateKey = (date: Date) =>
+  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+
+const formatDateBadge = (date: Date) =>
+  `${padDatePart(date.getMonth() + 1)} 月 ${padDatePart(date.getDate())} 日`;
+
 export default function Home({ onAddRecipeRecord }: HomeProps) {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<MealTag>('午餐');
+  const [today, setToday] = useState(() => new Date());
   const [todayIntake, setTodayIntake] = useState({
     calories: 0,
     carbs: 0,
@@ -49,6 +60,14 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
     fat: 0,
     count: 0
   });
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setToday(new Date());
+    }, 60 * 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   const getProgress = (current: number, target: number) => ({
     percent: Math.min((current / target) * 100, 100),
@@ -74,6 +93,8 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
   ];
 
   const calorieProgress = getProgress(todayIntake.calories, dailyTargets.calories);
+  const todayDateKey = formatDateKey(today);
+  const todayDateLabel = formatDateBadge(today);
 
   const mockAnalysis = (_imageDataUrl?: string) => {
     setIsAnalyzing(true);
@@ -87,7 +108,9 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
           calories: 520,
           carbs: 18,
           protein: 24,
-          fat: 39
+          fat: 39,
+          ingredients: ['五花肉', '冰糖', '酱油', '料酒'],
+          cookingMethod: '红烧慢炖'
         },
         {
           foodName: '清蒸鲈鱼',
@@ -96,7 +119,9 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
           calories: 260,
           carbs: 3,
           protein: 35,
-          fat: 11
+          fat: 11,
+          ingredients: ['鲈鱼', '姜丝', '葱段', '蒸鱼豉油'],
+          cookingMethod: '清蒸'
         },
         {
           foodName: '糖醋里脊',
@@ -105,7 +130,9 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
           calories: 430,
           carbs: 46,
           protein: 21,
-          fat: 18
+          fat: 18,
+          ingredients: ['猪里脊', '鸡蛋', '淀粉', '糖醋汁'],
+          cookingMethod: '挂糊油炸后糖醋快炒'
         }
       ];
 
@@ -121,13 +148,15 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
     const config = getRecommendationConfig(analysisResult.recommendation);
     onAddRecipeRecord({
       id: `${Date.now()}-${analysisResult.foodName}`,
-      date: '2026-06-04',
+      date: todayDateKey,
       meal: selectedMeal,
       name: analysisResult.foodName,
       calories: analysisResult.calories,
       carbs: analysisResult.carbs,
       protein: analysisResult.protein,
       fat: analysisResult.fat,
+      ingredients: analysisResult.ingredients,
+      cookingMethod: analysisResult.cookingMethod,
       recommendation: analysisResult.recommendation,
       summary: config.hint,
       reasons: [
@@ -210,6 +239,9 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
 
       <div className="px-5 py-5 space-y-4">
         <Card className="relative overflow-hidden rounded-[30px] border border-[#BDEFC3] bg-[#FFFDF7] p-5 shadow-[0_12px_30px_rgba(76,203,99,0.14)]">
+          <div className="absolute right-12 top-7 z-10 shrink-0 whitespace-nowrap rounded-full bg-[#4CCB63] px-3 py-2 text-[14px] font-semibold leading-none tracking-[-0.01em] text-white">
+            {todayDateLabel}
+          </div>
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-sm font-medium text-[#6B7280]">今日已摄入</p>
@@ -229,9 +261,6 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
                 今天吃了什么？拍给我看看～
                 <span className="absolute -bottom-1.5 left-7 h-3 w-3 rotate-45 bg-[#FFEFA6]" />
               </div>
-            </div>
-            <div className="mr-2 shrink-0 whitespace-nowrap rounded-full bg-[#4CCB63] px-3 py-2 text-[14px] font-semibold leading-none tracking-[-0.01em] text-white">
-              06 月 04 日
             </div>
           </div>
 

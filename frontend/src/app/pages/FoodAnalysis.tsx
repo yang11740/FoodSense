@@ -252,6 +252,30 @@ export default function FoodAnalysis({ recipeRecords }: FoodAnalysisProps) {
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-[18px] bg-[#F7FFF4] p-4">
+                          <p className="text-sm font-semibold text-[#4B5563]">主要食材</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {record.ingredients.map((ingredient) => (
+                              <Badge
+                                key={ingredient}
+                                variant="outline"
+                                className="bg-white text-[#15803D] border-[#BDEFC3]"
+                              >
+                                {ingredient}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="rounded-[18px] bg-[#FFF7E6] p-4">
+                          <p className="text-sm font-semibold text-[#4B5563]">烹饪方式</p>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-[#B7791F]">
+                            {record.cookingMethod}
+                          </p>
+                        </div>
+                      </div>
+
                       <div className={`rounded-[18px] border p-4 ${tone.panel}`}>
                         <p className="text-sm font-semibold">分析建议</p>
                         <p className="mt-1 text-sm leading-6">{record.summary}</p>
