@@ -1,20 +1,22 @@
-
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, useGLTF } from '@react-three/drei'
+import { Suspense } from 'react'
+
+const MODEL_URL = new URL('./realistic_human_base.glb', import.meta.url).href;
 
 function Model() {
   // 加载glb模型
-  const { scene } = useGLTF('/src/app/components/3d/realistic_human_base.glb');
+  const { scene } = useGLTF(MODEL_URL);
 
   // 可以在这里对加载的模型进行调整，例如缩放、旋转、材质等
-  scene.scale.set(1.5, 1.5, 1.5); // 根据需要调整模型大小
-  scene.position.set(0, -1.5, 0); // 根据需要调整模型位置
+  scene.scale.set(1.5, 1.5, 1.5);
+  scene.position.set(0, -1.5, 0);
 
   return <primitive object={scene} />;
 }
 
 // 预加载模型
-useGLTF.preload('/src/app/components/3d/realistic_human_base.glb')
+useGLTF.preload(MODEL_URL)
 
 export default function HumanModel() {
   return (
@@ -22,6 +24,8 @@ export default function HumanModel() {
       shadows
       camera={{ position: [0, 1, 5], fov: 50 }}
       style={{
+        width: '100%',
+        height: '100%',
         background: 'linear-gradient(to bottom right, #e0f7fa, #e8f5e9, #e0f7fa)',
         borderRadius: '0.5rem',
         boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)'
@@ -31,7 +35,9 @@ export default function HumanModel() {
       <spotLight position={[10, 15, 10]} angle={0.3} penumbra={1} castShadow />
       <pointLight position={[-10, -10, -10]} />
 
-      <Model />
+      <Suspense fallback={null}>
+        <Model />
+      </Suspense>
 
       <OrbitControls
         enableZoom={false}

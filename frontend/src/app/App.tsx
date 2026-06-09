@@ -5,10 +5,15 @@ import FoodAnalysis from '@/app/pages/FoodAnalysis';
 import Tools from '@/app/pages/Tools';
 import HealthProfile from '@/app/pages/HealthProfile';
 import MascotChat from '@/app/pages/MascotChat';
+import Settings from '@/app/pages/Settings';
+import Preferences from '@/app/pages/Preferences';
+import Goals from '@/app/pages/Goals';
+import Auth from '@/app/pages/Auth';
+import Onboarding from '@/app/pages/Onboarding';
 import WelcomeScreen from '@/app/components/WelcomeScreen';
 import type { RecipeRecord } from '@/app/types/food';
 
-type Page = 'home' | 'analysis' | 'chat' | 'tools' | 'profile' | 'report';
+type Page = 'auth' | 'onboarding' | 'home' | 'analysis' | 'chat' | 'tools' | 'profile' | 'report' | 'settings' | 'preferences' | 'goals';
 
 const navItems = [
   { page: 'home' as Page, label: '记录', icon: ClipboardList },
@@ -73,26 +78,165 @@ const initialRecipeRecords: RecipeRecord[] = [
 ];
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [currentPage, setCurrentPage] = useState<Page>('auth');
   const [showWelcome, setShowWelcome] = useState(false);
   const [recipeRecords, setRecipeRecords] = useState<RecipeRecord[]>(initialRecipeRecords);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{
+    goal: string;
+    age: string;
+    gender: string;
+    dietStyle: string;
+    mood: string;
+  } | null>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+
+  const saveUserProfile = async (profile: {
+    goal: string;
+    age: string;
+    gender: string;
+    dietStyle: string;
+    mood: string;
+  }) => {
+    if (!user) return;
+    try {
+      await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, ...profile })
+      });
+    } catch (error) {
+      console.error('保存用户资料失败', error);
+    }
+  };
+
+  const loadUserProfile = async (email: string) => {
+    try {
+      const response = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+      if (!response.ok) {
+        setUserProfile(null);
+        return;
+      }
+      const profile = await response.json();
+      if (Object.keys(profile).length === 0) {
+        setUserProfile(null);
+        return;
+      }
+      setUserProfile(profile);
+    } catch (error) {
+      console.error('加载用户资料失败', error);
+      setUserProfile(null);
+    }
+  };
+
+  const handleOnboardingComplete = (profile: {
+    goal: string;
+    age: string;
+    gender: string;
+    dietStyle: string;
+    mood: string;
+  }) => {
+    saveUserProfile(profile).catch((error) => console.error(error));
+    setUserProfile(profile);
+    setCurrentPage('home');
+  };
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'auth':
+        return (
+          <Auth
+            onLogin={(loginUser) => {
+              setUser(loginUser);
+              setIsNewUser(false);
+              setCurrentPage('home');
+              loadUserProfile(loginUser.email);
+            }}
+            onRegister={(newUser) => {
+              setUser(newUser);
+              setIsNewUser(true);
+              setUserProfile(null);
+              setCurrentPage('onboarding');
+            }}
+          />
+        );
+      case 'onboarding':
+        if (!user) {
+          return (
+            <Auth
+              onLogin={(loginUser) => {
+                setUser(loginUser);
+                setIsNewUser(false);
+                setCurrentPage('home');
+              }}
+              onRegister={(newUser) => {
+                setUser(newUser);
+                setIsNewUser(true);
+                setCurrentPage('onboarding');
+              }}
+            />
+          );
+        }
+        return (
+          <Onboarding
+            userName={user?.name ?? '小伙伴'}
+            onComplete={handleOnboardingComplete}
+          />
+        );
       case 'home':
-        return <Home onAddRecipeRecord={(record) => setRecipeRecords((records) => [record, ...records])} />;
+        if (!user) {
+          setCurrentPage('auth');
+          return (
+            <Auth
+              onLogin={(loginUser) => {
+                setUser(loginUser);
+                setIsNewUser(false);
+                setCurrentPage('home');
+              }}
+              onRegister={(newUser) => {
+                setUser(newUser);
+                setIsNewUser(true);
+                setCurrentPage('onboarding');
+              }}
+            />
+          );
+        }
+        return <Home userName={user?.name} onAddRecipeRecord={(record) => setRecipeRecords((records) => [record, ...records])} />;
       case 'analysis':
         return <FoodAnalysis recipeRecords={recipeRecords} />;
       case 'tools':
-        return <Tools initialSection="overview" />;
+        return <Tools initialSection="overview" onNavigatePage={(page) => setCurrentPage(page)} />;
       case 'chat':
         return <MascotChat onBack={() => setCurrentPage('home')} />;
       case 'profile':
-        return <HealthProfile />;
+        return <HealthProfile user={user} userProfile={userProfile} />;
       case 'report':
-        return <Tools initialSection="weekly" />;
+        return <Tools initialSection="weekly" onNavigatePage={(page) => setCurrentPage(page)} />;
+      case 'settings':
+        return <Settings onBack={() => setCurrentPage('tools')} onNavigatePage={(page) => setCurrentPage(page)} />;
+      case 'preferences':
+        return <Preferences onBack={() => setCurrentPage('settings')} />;
+      case 'goals':
+        return <Goals onBack={() => setCurrentPage('settings')} />;
       default:
-        return <Home onAddRecipeRecord={(record) => setRecipeRecords((records) => [record, ...records])} />;
+        if (!user) {
+          setCurrentPage('auth');
+          return (
+            <Auth
+              onLogin={(loginUser) => {
+                setUser(loginUser);
+                setIsNewUser(false);
+                setCurrentPage('home');
+              }}
+              onRegister={(newUser) => {
+                setUser(newUser);
+                setIsNewUser(true);
+                setCurrentPage('onboarding');
+              }}
+            />
+          );
+        }
+        return <Home userName={user?.name} onAddRecipeRecord={(record) => setRecipeRecords((records) => [record, ...records])} />;
     }
   };
 
@@ -104,7 +248,7 @@ export default function App() {
         {renderPage()}
       </div>
 
-      {currentPage !== 'chat' && <nav className="bg-[#FFFDF7]/96 border-t border-[rgba(76,203,99,0.14)] rounded-t-[30px] shadow-[0_-8px_24px_rgba(76,203,99,0.12)] backdrop-blur">
+      {currentPage !== 'chat' && currentPage !== 'auth' && currentPage !== 'onboarding' && <nav className="bg-[#FFFDF7]/96 border-t border-[rgba(76,203,99,0.14)] rounded-t-[30px] shadow-[0_-8px_24px_rgba(76,203,99,0.12)] backdrop-blur">
         <div className="flex items-end justify-around px-3 pt-2 pb-3">
           {navItems.map(({ page, label, icon: Icon, center }) => {
             const active = currentPage === page;

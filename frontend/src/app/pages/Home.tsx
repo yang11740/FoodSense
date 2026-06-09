@@ -29,6 +29,7 @@ interface AnalysisResult {
 
 interface HomeProps {
   onAddRecipeRecord: (record: RecipeRecord) => void;
+  userName?: string;
 }
 
 const dailyTargets = {
@@ -48,7 +49,7 @@ const formatDateKey = (date: Date) =>
 const formatDateBadge = (date: Date) =>
   `${padDatePart(date.getMonth() + 1)} 月 ${padDatePart(date.getDate())} 日`;
 
-export default function Home({ onAddRecipeRecord }: HomeProps) {
+export default function Home({ onAddRecipeRecord, userName }: HomeProps) {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -238,6 +239,7 @@ export default function Home({ onAddRecipeRecord }: HomeProps) {
               </h1>
               <Sparkles className="h-6 w-6 text-[#1D2A22]" strokeWidth={2} />
             </div>
+            {userName && <p className="mt-2 text-sm text-[#4B5563]">欢迎回来，{userName}，一起继续照顾你的饮食吧。</p>}
           </div>
         </div>
       </div>

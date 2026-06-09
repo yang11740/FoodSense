@@ -1,25 +1,57 @@
+'use client';
+
 import { AlertCircle, Edit2, History, Sparkles, Target, UserRound } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
 import { Card } from '@/app/components/ui/card';
+import BodyPartOverlay from '@/app/components/BodyPartOverlay';
 import HumanModel from '@/app/components/3d/HumanModel';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/app/components/ui/dialog';
+import { useEffect, useState } from 'react';
 
-const userData = {
-  name: '张三',
-  age: 35,
-  gender: '男',
-  height: 175,
-  weight: 78,
-  bmi: 25.5,
-  healthGoals: ['控糖', '减脂', '改善睡眠'],
-  healthStatus: {
-    issues: [
-      { area: '腹部', description: '脂肪偏高' },
-      { area: '睡眠', description: '睡眠不足' }
-    ]
-  }
-};
+interface HealthProfileProps {
+  user: { name: string; email: string } | null;
+  userProfile: {
+    goal: string;
+    age: string;
+    gender: string;
+    dietStyle: string;
+    mood: string;
+  } | null;
+}
 
-export default function HealthProfile() {
+const defaultGoals = ['完善个人资料', '让小膳青更懂你'];
+
+export default function HealthProfile({ user, userProfile }: HealthProfileProps) {
+  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
+  const [healthGoals, setHealthGoals] = useState<string[]>([]);
+  const [goalInput, setGoalInput] = useState('');
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setHealthGoals(userProfile?.goal ? [userProfile.goal] : defaultGoals);
+  }, [userProfile]);
+
+  const profileName = user?.name ?? '小伙伴';
+  const profileAge = userProfile?.age ? `${userProfile.age} 岁` : '未设置';
+  const profileGender = userProfile?.gender ?? '未设置';
+  const profileDiet = userProfile?.dietStyle ?? '未设置';
+  const profileMood = userProfile?.mood ?? '未设置';
+  const profileStatus = userProfile
+    ? [
+        { area: '饮食风格', description: profileDiet },
+        { area: '当前心情', description: profileMood }
+      ]
+    : [{ area: '新手引导', description: '请完成个人资料以生成更精准推荐' }];
+
+  const healthIssues = profileStatus.map((issue) => issue.description);
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#DDFCD6_0%,#F7FFF4_42%,#F3FAF0_100%)] pb-28">
       <div className="px-5 pt-6">
@@ -49,12 +81,23 @@ export default function HealthProfile() {
             </Badge>
           </div>
 
-          <div className="relative aspect-[3/4] overflow-hidden rounded-[28px] bg-[#F0FBEF] shadow-inner">
-            <HumanModel />
+          <div className="space-y-4">
+            <div className="relative aspect-[3/4] overflow-hidden rounded-[28px] bg-[#F0FBEF] shadow-inner">
+              <HumanModel />
+            </div>
+            <div className="relative aspect-[3/4] overflow-hidden rounded-[28px] bg-[#F0FBEF] shadow-inner">
+              <BodyPartOverlay
+                healthIssues={healthIssues}
+                onPartClick={(part) => {
+                  setSelectedBodyPart(part);
+                  console.log('Selected body part:', part);
+                }}
+              />
+            </div>
           </div>
 
           <div className="mt-4 space-y-2">
-            {userData.healthStatus.issues.map((issue) => (
+            {profileStatus.map((issue) => (
               <div key={issue.area} className="flex items-center gap-3 rounded-[18px] border border-[#FFD88A] bg-[#FFF7E6] p-3">
                 <AlertCircle className="h-4 w-4 shrink-0 text-[#FFB84D]" strokeWidth={1.8} />
                 <div className="min-w-0 flex-1">
@@ -80,16 +123,15 @@ export default function HealthProfile() {
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              ['姓名', userData.name],
-              ['年龄', `${userData.age} 岁`],
-              ['性别', userData.gender],
-              ['身高', `${userData.height} cm`],
-              ['体重', `${userData.weight} kg`],
-              ['BMI', userData.bmi],
+              ['姓名', profileName],
+              ['年龄', profileAge],
+              ['性别', profileGender],
+              ['饮食风格', profileDiet],
+              ['当前心情', profileMood]
             ].map(([label, value]) => (
               <div key={label} className="rounded-[18px] bg-[#F0FBEF] p-3">
                 <p className="mb-1 text-sm text-[#6B7280]">{label}</p>
-                <p className={`font-semibold ${label === 'BMI' ? 'text-[#B7791F]' : 'text-[#1D2A22]'}`}>{value}</p>
+                <p className="font-semibold text-[#1D2A22]">{value}</p>
               </div>
             ))}
           </div>
@@ -102,14 +144,17 @@ export default function HealthProfile() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {userData.healthGoals.map((goal) => (
+            {healthGoals.map((goal) => (
               <Badge key={goal} className="border-[#BDEFC3] bg-[#DCF8D8] text-[#15803D]">
                 {goal}
               </Badge>
             ))}
           </div>
 
-          <button className="mt-4 w-full rounded-full border border-[#BDEFC3] bg-[#F0FBEF] px-4 py-3 font-semibold text-[#15803D] transition-colors hover:bg-[#DCF8D8]">
+          <button
+            onClick={() => setGoalDialogOpen(true)}
+            className="mt-4 w-full rounded-full border border-[#BDEFC3] bg-[#F0FBEF] px-4 py-3 font-semibold text-[#15803D] transition-colors hover:bg-[#DCF8D8]"
+          >
             编辑健康目标
           </button>
         </Card>
@@ -150,6 +195,61 @@ export default function HealthProfile() {
           </div>
         </Card>
       </div>
+
+      <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>编辑健康目标</DialogTitle>
+            <DialogDescription>更新你的目标，帮助系统给出更精准的饮食建议。</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2 rounded-2xl bg-[#F7FFF4] p-4 border border-[#BDEFC3]">
+              <p className="text-sm text-[#4B5563]">当前目标</p>
+              <div className="flex flex-wrap gap-2">
+                {healthGoals.map((goal) => (
+                  <span key={goal} className="rounded-full bg-[#DCF8D8] px-3 py-1 text-sm text-[#15803D]">
+                    {goal}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[#1D2A22]">新增目标</label>
+              <input
+                value={goalInput}
+                onChange={(event) => setGoalInput(event.target.value)}
+                placeholder="例如：每天多吃一份蔬菜"
+                className="w-full rounded-2xl border border-[#D1D5DB] bg-white px-4 py-3 text-sm text-[#111827] outline-none focus:border-[#4BAE5F] focus:ring-2 focus:ring-[#DCF8D8]"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const text = goalInput.trim();
+                  if (text && !healthGoals.includes(text)) {
+                    setHealthGoals((current) => [...current, text]);
+                    setGoalInput('');
+                  }
+                }}
+                className="w-full rounded-full bg-[#15803D] px-4 py-3 text-sm font-semibold text-white hover:bg-[#12702E]"
+              >
+                添加目标
+              </button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setGoalDialogOpen(false)}
+              className="rounded-full border border-[#D1D5DB] bg-white px-4 py-3 text-sm font-semibold text-[#4B5563] hover:bg-[#F8FAF7]"
+            >
+              关闭
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

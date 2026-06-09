@@ -25,11 +25,20 @@ import {
   YAxis
 } from 'recharts';
 import { Card } from '@/app/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/app/components/ui/dialog';
 
 type HealthSection = 'overview' | 'weekly' | 'risk' | 'reminders' | 'goals' | 'privacy';
 
 interface ToolsProps {
   initialSection?: HealthSection;
+  onNavigatePage?: (page: 'settings' | 'preferences' | 'goals') => void;
 }
 
 const riskTrendData = [
@@ -127,10 +136,40 @@ const tooltipStyle = {
   boxShadow: '0 8px 24px rgba(76, 203, 99, 0.12)'
 };
 
-export default function Tools({ initialSection = 'overview' }: ToolsProps) {
+export default function Tools({ initialSection = 'overview', onNavigatePage }: ToolsProps) {
   const [activeSection, setActiveSection] = useState<HealthSection>(initialSection);
+  const [activeDialog, setActiveDialog] = useState<'reminders' | null>(null);
+  const [reminderSettingsState, setReminderSettingsState] = useState({ medication: true, diet: true, review: true });
 
   const visibleCards = sectionCards.filter((card) => card.id !== 'privacy');
+
+  const handleNavigatePage = (page: 'settings' | 'preferences' | 'goals') => {
+    if (onNavigatePage) {
+      onNavigatePage(page);
+      return;
+    }
+    if (page === 'settings') {
+      setActiveSection('privacy');
+    }
+  };
+
+  const toggleReminderSetting = (key: keyof typeof reminderSettingsState) => {
+    setReminderSettingsState((current) => ({
+      ...current,
+      [key]: !current[key]
+    }));
+  };
+
+  const exportHealthReport = () => {
+    const report = `食知健康报告\n\n本周饮食小结：高盐次数少了 2 次，晚餐更清淡。\n\n关键指标：\n- 风险次数：下降 35%\n- 均衡程度：提升 12%\n\n建议：\n- 控制红烧、糖醋、炸物次数\n- 晚餐增加绿叶菜\n- 继续保持低盐、低糖、低脂饮食\n\n感谢使用食知 FoodSense。`;
+    const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'FoodSense_健康报告.txt';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#DDFCD6_0%,#F7FFF4_44%,#F3FAF0_100%)] pb-24">
@@ -141,7 +180,7 @@ export default function Tools({ initialSection = 'overview' }: ToolsProps) {
           <Sparkles className="h-6 w-6 text-[#1D2A22]" strokeWidth={2} />
         </div>
         <button
-          onClick={() => setActiveSection('privacy')}
+          onClick={() => handleNavigatePage('settings')}
           className="absolute right-5 top-7 grid h-9 w-9 place-items-center rounded-full border border-[#BDEFC3] bg-white/72 text-[#4B5563] shadow-[0_8px_18px_rgba(76,203,99,0.12)]"
           aria-label="设置与隐私"
         >
@@ -183,7 +222,7 @@ export default function Tools({ initialSection = 'overview' }: ToolsProps) {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => (item.id === 'privacy' ? handleNavigatePage('settings') : setActiveSection(item.id))}
                 className={`rounded-[24px] border bg-[#FFFDF7] p-4 text-left shadow-[0_8px_20px_rgba(76,203,99,0.10)] transition-all active:scale-[0.98] ${
                   active ? 'border-[#4CCB63] ring-2 ring-[#DCF8D8]' : 'border-transparent'
                 }`}
@@ -210,7 +249,7 @@ export default function Tools({ initialSection = 'overview' }: ToolsProps) {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveSection(item.id)}
+                    onClick={() => (item.id === 'privacy' ? handleNavigatePage('settings') : setActiveSection(item.id))}
                     className="flex w-full items-center gap-3 rounded-[20px] bg-[#F7FFF4] p-3 text-left"
                   >
                     <span className={`grid h-10 w-10 place-items-center rounded-[16px] ${item.color}`}>
@@ -261,6 +300,13 @@ export default function Tools({ initialSection = 'overview' }: ToolsProps) {
                 </div>
               </div>
             </Card>
+            <button
+              type="button"
+              onClick={exportHealthReport}
+              className="w-full rounded-full bg-[#15803D] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#12702E]"
+            >
+              导出健康报告
+            </button>
           </div>
         )}
 
@@ -326,7 +372,10 @@ export default function Tools({ initialSection = 'overview' }: ToolsProps) {
               ))}
             </div>
 
-            <button className="mt-4 w-full rounded-full border border-[#BDEFC3] bg-[#F0FBEF] px-4 py-3 font-bold text-[#15803D] transition-colors hover:bg-[#DCF8D8]">
+            <button
+              onClick={() => setActiveDialog('reminders')}
+              className="mt-4 w-full rounded-full border border-[#BDEFC3] bg-[#F0FBEF] px-4 py-3 font-bold text-[#15803D] transition-colors hover:bg-[#DCF8D8]"
+            >
               管理提醒设置
             </button>
           </Card>
@@ -373,22 +422,66 @@ export default function Tools({ initialSection = 'overview' }: ToolsProps) {
           </div>
         )}
 
-        {activeSection === 'privacy' && (
-          <Card className="border-[#E5E7EB] bg-[#FFFDF7] p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-[#4B5563]" strokeWidth={1.8} />
-              <h2 className="text-lg font-extrabold text-[#17221B]">设置与隐私</h2>
+
+        <Dialog open={activeDialog !== null} onOpenChange={(open) => !open && setActiveDialog(null)}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>提醒设置</DialogTitle>
+            <DialogDescription>调整健康提醒内容，获取更贴合你生活的饮食提示。</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {activeDialog === 'reminders' && (
+                <div className="space-y-4">
+                  {reminders.map((reminder) => (
+                    <div key={reminder.title} className="rounded-2xl border border-[#BFDBFE] bg-[#EFF7FF] p-4">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[#17221B]">{reminder.title}</p>
+                          <p className="text-xs text-[#6B7280]">{reminder.time}</p>
+                        </div>
+                        <span className="rounded-full bg-[#DCF8D8] px-3 py-1 text-xs font-semibold text-[#15803D]">
+                          已开启
+                        </span>
+                      </div>
+                      <p className="text-sm text-[#4B5563]">{reminder.note}</p>
+                    </div>
+                  ))}
+                  <div className="space-y-2">
+                    {(
+                      Object.entries(reminderSettingsState) as Array<[keyof typeof reminderSettingsState, boolean]>
+                    ).map(([key, value]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleReminderSetting(key)}
+                        className={`flex w-full items-center justify-between rounded-[18px] border px-4 py-3 text-left transition ${
+                          value ? 'border-[#4CCB63] bg-[#EFFFEF]' : 'border-[#D1D5DB] bg-white'
+                        }`}
+                      >
+                        <span className="text-sm font-medium text-[#17221B]">{key === 'medication' ? '服药提醒' : key === 'diet' ? '饮食提醒' : '复盘提醒'}</span>
+                        <span className={`text-sm font-semibold ${value ? 'text-[#15803D]' : 'text-[#6B7280]'}`}>
+                          {value ? '开启' : '关闭'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
-            <div className="space-y-3">
-              {['相机授权', '饮食偏好', '健康目标', '数据导出'].map((item) => (
-                <button key={item} className="flex w-full items-center justify-between rounded-[18px] bg-[#F7FFF4] px-4 py-3 text-left">
-                  <span className="font-bold text-[#17221B]">{item}</span>
-                  <ChevronRight className="h-4 w-4 text-[#A7B3AA]" strokeWidth={1.8} />
-                </button>
-              ))}
-            </div>
-          </Card>
-        )}
+
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setActiveDialog(null)}
+                className="rounded-full border border-[#D1D5DB] bg-white px-4 py-3 text-sm font-semibold text-[#4B5563] hover:bg-[#F8FAF7]"
+              >
+                关闭
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

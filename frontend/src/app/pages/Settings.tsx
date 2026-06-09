@@ -1,13 +1,50 @@
-import { ChevronRight, Bell, Shield, Info, HelpCircle, Mail } from 'lucide-react';
+'use client';
+
+import type React from 'react';
+import { ChevronLeft, ChevronRight, Bell, Shield, Info, HelpCircle, Mail } from 'lucide-react';
 import { Card } from '@/app/components/ui/card';
 
-export default function Settings() {
-  const settingsSections = [
+interface SettingsProps {
+  onBack?: () => void;
+  onNavigatePage?: (page: 'preferences' | 'goals') => void;
+}
+
+interface SettingsItem {
+  icon: React.ElementType;
+  label: string;
+  value?: string;
+  page?: 'preferences' | 'goals';
+}
+
+interface SettingsSection {
+  title: string;
+  items: SettingsItem[];
+}
+
+export default function Settings({ onBack, onNavigatePage }: SettingsProps) {
+  const settingsSections: SettingsSection[] = [
     {
       title: '通知设置',
       items: [
         { icon: Bell, label: '推送通知', value: '已开启' },
         { icon: Bell, label: '语音提醒', value: '已开启' }
+      ]
+    },
+    {
+      title: '偏好设置',
+      items: [
+        {
+          icon: Bell,
+          label: '饮食偏好',
+          value: '',
+          page: 'preferences'
+        },
+        {
+          icon: Bell,
+          label: '健康目标',
+          value: '',
+          page: 'goals'
+        }
       ]
     },
     {
@@ -20,7 +57,7 @@ export default function Settings() {
     {
       title: '关于应用',
       items: [
-        { icon: Info, label: '关于食知', value: 'v1.0.0' },
+        { icon: Info, label: '关于知膳', value: 'v1.0.0' },
         { icon: HelpCircle, label: '使用帮助', value: '' },
         { icon: Mail, label: '联系我们', value: '' }
       ]
@@ -31,8 +68,17 @@ export default function Settings() {
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* 顶部标题 */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <h1 className="text-xl text-gray-900">设置</h1>
+        <div className="flex items-center gap-3 px-4 py-4">
+          <button
+            onClick={onBack}
+            className="grid h-10 w-10 place-items-center rounded-full bg-[#EFF7EE] text-[#15803D]"
+            aria-label="返回健康中心"
+          >
+            <ChevronLeft className="h-5 w-5" strokeWidth={2} />
+          </button>
+          <div>
+            <h1 className="text-xl text-gray-900">设置</h1>
+          </div>
         </div>
       </div>
 
@@ -44,6 +90,7 @@ export default function Settings() {
               {section.items.map((item, itemIndex) => (
                 <button
                   key={itemIndex}
+                  onClick={() => item.page && onNavigatePage?.(item.page)}
                   className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${
                     itemIndex !== section.items.length - 1 ? 'border-b border-gray-100' : ''
                   }`}
@@ -68,7 +115,7 @@ export default function Settings() {
         <Card className="p-4 bg-yellow-50 border border-yellow-200">
           <h3 className="text-sm text-yellow-900 mb-2">重要提示</h3>
           <p className="text-xs text-yellow-800 leading-relaxed">
-            食知（FoodSense）是一款饮食决策辅助工具，旨在帮助用户更好地了解食物营养信息和潜在健康风险。
+            知膳（FoodSense）是一款饮食决策辅助工具，旨在帮助用户更好地了解食物营养信息和潜在健康风险。
             本应用不提供任何医疗诊断、治疗建议或专业医疗咨询。
             如有健康问题，请咨询专业医疗机构。
           </p>
