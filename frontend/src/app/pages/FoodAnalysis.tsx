@@ -192,10 +192,12 @@ interface FoodAnalysisProps {
 }
 
 export default function FoodAnalysis({ recipeRecords }: FoodAnalysisProps) {
-  const today = new Date(2026, 5, 4);
-  const [visibleMonth, setVisibleMonth] = useState(new Date(2026, 5, 1));
-  const [selectedDate, setSelectedDate] = useState(toDateKey(today));
-  const [expandedId, setExpandedId] = useState<string | null>('2026-06-04-lunch');
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const calendarDays = useMemo(() => {
     const year = visibleMonth.getFullYear();

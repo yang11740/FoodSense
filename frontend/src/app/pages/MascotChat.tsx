@@ -1,43 +1,24 @@
 import { ArrowLeft, CirclePlus, Mic } from 'lucide-react';
+import ChatThread from '@/app/components/ChatThread';
+import type { ChatMessage } from '@/app/types/chat';
 
 interface MascotChatProps {
+  messages: ChatMessage[];
   onBack: () => void;
 }
 
-const messages = [
+const fallbackMessages: ChatMessage[] = [
   {
-    id: 1,
-    from: 'bot',
-    text: '为了给你搭配更合胃口的饮食方案，说说你的饮食习惯吧～'
-  },
-  {
-    id: 2,
-    from: 'bot',
-    text: '平时喜欢清淡一点，还是更爱川湘、红烧、糖醋这些口味？'
-  },
-  {
-    id: 3,
-    from: 'user',
-    text: '希望三餐搭配合理，吃得健康又均衡～'
-  },
-  {
-    id: 4,
-    from: 'bot',
-    text: '收到！我会优先帮你看热量、油盐糖和蛋白质搭配，建议会尽量说得简单一点。'
-  },
-  {
-    id: 5,
-    from: 'user',
-    text: '没啥特别需求，正常吃就好啦～'
-  },
-  {
-    id: 6,
-    from: 'bot',
-    text: '那我先按日常中式饮食来帮你记录。拍照之后，我会告诉你这顿适不适合多吃。'
+    id: 'chat-empty-welcome',
+    from: 'assistant',
+    text: '我是小膳青。你可以把饮食习惯、健康目标或者今天想吃什么告诉我，我会帮你一起整理。',
+    createdAt: new Date().toISOString()
   }
 ];
 
-export default function MascotChat({ onBack }: MascotChatProps) {
+export default function MascotChat({ messages, onBack }: MascotChatProps) {
+  const visibleMessages = messages.length > 0 ? messages : fallbackMessages;
+
   return (
     <div className="relative h-full overflow-hidden bg-[#EAF9E5] text-[#17221B]">
       <div className="absolute inset-0">
@@ -62,48 +43,15 @@ export default function MascotChat({ onBack }: MascotChatProps) {
               <ArrowLeft className="h-6 w-6" strokeWidth={2.2} />
             </button>
             <div className="flex items-center justify-center gap-2">
-              <h1 className="text-[25px] font-extrabold tracking-[0.01em] text-[#17221B]">小膳青</h1>
+              <h1 className="text-[25px] font-extrabold tracking-normal text-[#17221B]">小膳青</h1>
               <img src="/mascot/5.png" alt="小膳青" className="h-9 w-9 rounded-full object-cover" />
             </div>
             <span />
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4 pt-2">
-          {messages.map((message) => {
-            const isUser = message.from === 'user';
-            return (
-              <div key={message.id} className={`flex items-start gap-3 ${isUser ? 'justify-end pl-12' : 'pr-8'}`}>
-                {!isUser && (
-                  <img
-                    src="/mascot/5.png"
-                    alt="小膳青"
-                    className="mt-1 h-12 w-12 shrink-0 rounded-full border-2 border-white bg-[#E6FFD9] object-cover shadow-[0_4px_12px_rgba(76,203,99,0.18)]"
-                  />
-                )}
-
-                <div
-                  className={`relative max-w-[78%] rounded-[22px] border-2 px-4 py-3 text-[17px] leading-7 shadow-[0_7px_0_rgba(93,50,37,0.10)] ${
-                    isUser
-                      ? 'border-[#6D2B24] bg-[#BDEFF5] text-[#244149]'
-                      : 'border-[#6D2B24] bg-[#FFF1B9] text-[#22251F]'
-                  }`}
-                >
-                  {!isUser && (
-                    <>
-                      <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full bg-[#FF8FBA]" />
-                      <span className="absolute left-2 -top-3 h-4 w-4 rounded-full bg-[#8BC6FF]" />
-                      <span className="absolute left-6 -top-2 h-5 w-5 rounded-full bg-[#FFF480]" />
-                    </>
-                  )}
-                  <span className="absolute -right-2 -top-2 text-lg text-[#F2C84B]">★</span>
-                  <span className="absolute -bottom-2 -left-1 h-5 w-5 rounded-bl-[14px] rounded-tr-[16px] bg-[#A8D864]" />
-                  {isUser && <span className="absolute -right-2 -bottom-2 h-5 w-5 rounded-full bg-[#F7B663]" />}
-                  <p>{message.text}</p>
-                </div>
-              </div>
-            );
-          })}
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
+          <ChatThread messages={visibleMessages} />
         </main>
 
         <footer className="shrink-0 rounded-t-[34px] bg-[#D3F9D6]/92 px-5 pb-5 pt-5 shadow-[0_-10px_28px_rgba(76,203,99,0.16)] backdrop-blur-md">

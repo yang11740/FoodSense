@@ -6,22 +6,20 @@ import { Card } from '@/app/components/ui/card';
 
 interface GoalsProps {
   onBack?: () => void;
+  goals: string[];
+  onAddGoal: (goal: string) => void;
+  onRemoveGoal: (goal: string) => void;
 }
 
-export default function Goals({ onBack }: GoalsProps) {
-  const [goals, setGoals] = useState<string[]>(['控糖', '减少油炸', '规律作息']);
+export default function Goals({ onBack, goals, onAddGoal, onRemoveGoal }: GoalsProps) {
   const [inputValue, setInputValue] = useState('');
 
   const addGoal = () => {
     const value = inputValue.trim();
     if (value && !goals.includes(value)) {
-      setGoals((current) => [...current, value]);
+      onAddGoal(value);
       setInputValue('');
     }
-  };
-
-  const removeGoal = (goal: string) => {
-    setGoals((current) => current.filter((item) => item !== goal));
   };
 
   return (
@@ -44,22 +42,23 @@ export default function Goals({ onBack }: GoalsProps) {
 
       <div className="space-y-4 px-5 py-6">
         <Card className="bg-[#EFF7FF] p-5">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="mb-4 flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#DCF8D8] text-[#15803D]">
               <Target className="h-5 w-5" strokeWidth={2} />
             </span>
             <div>
               <h2 className="text-lg font-semibold text-[#17221B]">当前目标</h2>
-              <p className="text-sm text-[#4B5563]">长按移除已完成或不再适用的目标。</p>
+              <p className="text-sm text-[#4B5563]">点击移除已完成或不再适用的目标。</p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {goals.length === 0 && <p className="text-sm text-[#6B7280]">还没有健康目标。</p>}
             {goals.map((goal) => (
               <button
                 key={goal}
                 type="button"
-                onClick={() => removeGoal(goal)}
+                onClick={() => onRemoveGoal(goal)}
                 className="rounded-full bg-white px-3 py-2 text-sm text-[#1F2937] shadow-sm transition hover:bg-[#F0FDF4]"
               >
                 {goal} ×

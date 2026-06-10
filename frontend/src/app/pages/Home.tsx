@@ -7,7 +7,7 @@ import {
   Sparkles,
   Utensils
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import CameraRecognition from '@/app/components/CameraRecognition';
@@ -29,6 +29,7 @@ interface AnalysisResult {
 
 interface HomeProps {
   onAddRecipeRecord: (record: RecipeRecord) => void;
+  recipeRecords: RecipeRecord[];
   userName?: string;
 }
 
@@ -49,19 +50,12 @@ const formatDateKey = (date: Date) =>
 const formatDateBadge = (date: Date) =>
   `${padDatePart(date.getMonth() + 1)} 月 ${padDatePart(date.getDate())} 日`;
 
-export default function Home({ onAddRecipeRecord, userName }: HomeProps) {
+export default function Home({ onAddRecipeRecord, recipeRecords, userName }: HomeProps) {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<MealTag>('午餐');
   const [today, setToday] = useState(() => new Date());
-  const [todayIntake, setTodayIntake] = useState({
-    calories: 0,
-    carbs: 0,
-    protein: 0,
-    fat: 0,
-    count: 0
-  });
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -75,6 +69,29 @@ export default function Home({ onAddRecipeRecord, userName }: HomeProps) {
     percent: Math.min((current / target) * 100, 100),
     isOverTarget: current > target
   });
+
+  const todayDateKey = formatDateKey(today);
+  const todayDateLabel = formatDateBadge(today);
+  const todayIntake = useMemo(() => {
+    const todayRecords = recipeRecords.filter((record) => record.date === todayDateKey);
+
+    return todayRecords.reduce(
+      (total, record) => ({
+        calories: total.calories + record.calories,
+        carbs: total.carbs + record.carbs,
+        protein: total.protein + record.protein,
+        fat: total.fat + record.fat,
+        count: total.count + 1
+      }),
+      {
+        calories: 0,
+        carbs: 0,
+        protein: 0,
+        fat: 0,
+        count: 0
+      }
+    );
+  }, [recipeRecords, todayDateKey]);
 
   const todayStats = [
     {
@@ -95,8 +112,6 @@ export default function Home({ onAddRecipeRecord, userName }: HomeProps) {
   ];
 
   const calorieProgress = getProgress(todayIntake.calories, dailyTargets.calories);
-  const todayDateKey = formatDateKey(today);
-  const todayDateLabel = formatDateBadge(today);
 
   const mockAnalysis = (_imageDataUrl?: string) => {
     setIsAnalyzing(true);
@@ -174,13 +189,6 @@ export default function Home({ onAddRecipeRecord, userName }: HomeProps) {
       tags: analysisResult.riskTags.length > 0 ? analysisResult.riskTags : ['清淡']
     });
 
-    setTodayIntake((current) => ({
-      calories: current.calories + analysisResult.calories,
-      carbs: current.carbs + analysisResult.carbs,
-      protein: current.protein + analysisResult.protein,
-      fat: current.fat + analysisResult.fat,
-      count: current.count + 1
-    }));
     setAnalysisResult(null);
   };
 

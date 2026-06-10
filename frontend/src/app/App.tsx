@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { CalendarDays, ChartNoAxesColumn, ClipboardList, Plus, Smile } from 'lucide-react';
 import Home from '@/app/pages/Home';
 import FoodAnalysis from '@/app/pages/FoodAnalysis';
@@ -11,6 +11,7 @@ import Goals from '@/app/pages/Goals';
 import Auth from '@/app/pages/Auth';
 import Onboarding from '@/app/pages/Onboarding';
 import WelcomeScreen from '@/app/components/WelcomeScreen';
+import type { ChatMessage } from '@/app/types/chat';
 import type { RecipeRecord } from '@/app/types/food';
 
 type Page = 'auth' | 'onboarding' | 'home' | 'analysis' | 'chat' | 'tools' | 'profile' | 'report' | 'settings' | 'preferences' | 'goals';
@@ -89,7 +90,29 @@ export default function App() {
     dietStyle: string;
     mood: string;
   } | null>(null);
+  const [healthGoals, setHealthGoals] = useState<string[]>([]);
+  const [preferences, setPreferences] = useState<string[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isNewUser, setIsNewUser] = useState(false);
+
+  const appendChatMessages = useCallback((messages: ChatMessage[]) => {
+    setChatMessages((current) => {
+      const existingIds = new Set(current.map((message) => message.id));
+      const nextMessages = messages.filter((message) => !existingIds.has(message.id));
+      return nextMessages.length > 0 ? [...current, ...nextMessages] : current;
+    });
+  }, []);
+
+  const handleLogout = () => {
+    setUser(null);
+    setUserProfile(null);
+    setRecipeRecords([]);
+    setHealthGoals([]);
+    setPreferences([]);
+    setChatMessages([]);
+    setIsNewUser(false);
+    setCurrentPage('auth');
+  };
 
   const saveUserProfile = async (profile: {
     goal: string;
@@ -129,6 +152,199 @@ export default function App() {
     }
   };
 
+  const updateProfileFromSettings = async (nextProfile: {
+    name: string;
+    goal: string;
+    age: string;
+    gender: string;
+    dietStyle: string;
+    mood: string;
+  }) => {
+    if (!user) return;
+
+    const nextUser = { ...user, name: nextProfile.name };
+    const profilePayload = {
+      goal: nextProfile.goal,
+      age: nextProfile.age,
+      gender: nextProfile.gender,
+      dietStyle: nextProfile.dietStyle,
+      mood: nextProfile.mood
+    };
+
+    setUser(nextUser);
+    setUserProfile(profilePayload);
+
+    try {
+      await Promise.all([
+        fetch('/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email, name: nextProfile.name })
+        }),
+        fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email, ...profilePayload })
+        })
+      ]);
+    } catch (error) {
+      console.error('更新基础信息失败', error);
+    }
+  };
+
+  const loadRecipeRecords = async (email: string) => {
+    try {
+      const response = await fetch(`/api/recipes?email=${encodeURIComponent(email)}`);
+      if (!response.ok) {
+        setRecipeRecords([]);
+        return;
+      }
+
+      const records = await response.json();
+      setRecipeRecords(Array.isArray(records) ? records : []);
+    } catch (error) {
+      console.error('鍔犺浇椋熻氨璁板綍澶辫触', error);
+      setRecipeRecords([]);
+    }
+  };
+
+  const saveRecipeRecord = async (record: RecipeRecord) => {
+    if (!user) return;
+
+    setRecipeRecords((records) => [record, ...records]);
+
+    try {
+      const response = await fetch('/api/recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, record })
+      });
+
+      if (!response.ok) {
+        console.error('淇濆瓨椋熻氨璁板綍澶辫触', await response.json());
+        setRecipeRecords((records) => records.filter((item) => item.id !== record.id));
+      }
+    } catch (error) {
+      console.error('淇濆瓨椋熻氨璁板綍澶辫触', error);
+      setRecipeRecords((records) => records.filter((item) => item.id !== record.id));
+    }
+  };
+
+  const loadHealthGoals = async (email: string) => {
+    try {
+      const response = await fetch(`/api/goals?email=${encodeURIComponent(email)}`);
+      if (!response.ok) {
+        setHealthGoals([]);
+        return;
+      }
+
+      const goals = await response.json();
+      setHealthGoals(Array.isArray(goals) ? goals : []);
+    } catch (error) {
+      console.error('鍔犺浇鍋ュ悍鐩爣澶辫触', error);
+      setHealthGoals([]);
+    }
+  };
+
+  const addHealthGoal = async (goal: string) => {
+    if (!user) return;
+    const value = goal.trim();
+    if (!value || healthGoals.includes(value)) return;
+
+    setHealthGoals((current) => [...current, value]);
+
+    try {
+      const response = await fetch('/api/goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, goal: value })
+      });
+
+      if (!response.ok) {
+        setHealthGoals((current) => current.filter((item) => item !== value));
+      }
+    } catch (error) {
+      console.error('淇濆瓨鍋ュ悍鐩爣澶辫触', error);
+      setHealthGoals((current) => current.filter((item) => item !== value));
+    }
+  };
+
+  const removeHealthGoal = async (goal: string) => {
+    if (!user) return;
+    setHealthGoals((current) => current.filter((item) => item !== goal));
+
+    try {
+      const response = await fetch(`/api/goals?email=${encodeURIComponent(user.email)}&goal=${encodeURIComponent(goal)}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        setHealthGoals((current) => current.includes(goal) ? current : [...current, goal]);
+      }
+    } catch (error) {
+      console.error('鍒犻櫎鍋ュ悍鐩爣澶辫触', error);
+      setHealthGoals((current) => current.includes(goal) ? current : [...current, goal]);
+    }
+  };
+
+  const loadPreferences = async (email: string) => {
+    try {
+      const response = await fetch(`/api/preferences?email=${encodeURIComponent(email)}`);
+      if (!response.ok) {
+        setPreferences([]);
+        return;
+      }
+
+      const loadedPreferences = await response.json();
+      setPreferences(Array.isArray(loadedPreferences) ? loadedPreferences : []);
+    } catch (error) {
+      console.error('鍔犺浇楗鍋忓ソ澶辫触', error);
+      setPreferences([]);
+    }
+  };
+
+  const addPreference = async (preference: string) => {
+    if (!user) return;
+    const value = preference.trim();
+    if (!value || preferences.includes(value)) return;
+
+    setPreferences((current) => [...current, value]);
+
+    try {
+      const response = await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, preference: value })
+      });
+
+      if (!response.ok) {
+        setPreferences((current) => current.filter((item) => item !== value));
+      }
+    } catch (error) {
+      console.error('淇濆瓨楗鍋忓ソ澶辫触', error);
+      setPreferences((current) => current.filter((item) => item !== value));
+    }
+  };
+
+  const removePreference = async (preference: string) => {
+    if (!user) return;
+    setPreferences((current) => current.filter((item) => item !== preference));
+
+    try {
+      const response = await fetch(
+        `/api/preferences?email=${encodeURIComponent(user.email)}&preference=${encodeURIComponent(preference)}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) {
+        setPreferences((current) => current.includes(preference) ? current : [...current, preference]);
+      }
+    } catch (error) {
+      console.error('鍒犻櫎楗鍋忓ソ澶辫触', error);
+      setPreferences((current) => current.includes(preference) ? current : [...current, preference]);
+    }
+  };
+
   const handleOnboardingComplete = (profile: {
     goal: string;
     age: string;
@@ -137,6 +353,7 @@ export default function App() {
     mood: string;
   }) => {
     saveUserProfile(profile).catch((error) => console.error(error));
+    addHealthGoal(profile.goal).catch((error) => console.error(error));
     setUserProfile(profile);
     setCurrentPage('home');
   };
@@ -149,13 +366,21 @@ export default function App() {
             onLogin={(loginUser) => {
               setUser(loginUser);
               setIsNewUser(false);
+              setRecipeRecords([]);
               setCurrentPage('home');
               loadUserProfile(loginUser.email);
+              loadRecipeRecords(loginUser.email);
+              loadHealthGoals(loginUser.email);
+              loadPreferences(loginUser.email);
             }}
             onRegister={(newUser) => {
               setUser(newUser);
               setIsNewUser(true);
               setUserProfile(null);
+              setRecipeRecords([]);
+              setHealthGoals([]);
+              setPreferences([]);
+              setChatMessages([]);
               setCurrentPage('onboarding');
             }}
           />
@@ -167,11 +392,21 @@ export default function App() {
               onLogin={(loginUser) => {
                 setUser(loginUser);
                 setIsNewUser(false);
+                setRecipeRecords([]);
                 setCurrentPage('home');
+                loadUserProfile(loginUser.email);
+                loadRecipeRecords(loginUser.email);
+                loadHealthGoals(loginUser.email);
+                loadPreferences(loginUser.email);
               }}
               onRegister={(newUser) => {
                 setUser(newUser);
                 setIsNewUser(true);
+                setUserProfile(null);
+                setRecipeRecords([]);
+                setHealthGoals([]);
+                setPreferences([]);
+                setChatMessages([]);
                 setCurrentPage('onboarding');
               }}
             />
@@ -180,6 +415,8 @@ export default function App() {
         return (
           <Onboarding
             userName={user?.name ?? '小伙伴'}
+            chatMessages={chatMessages}
+            onAppendChatMessages={appendChatMessages}
             onComplete={handleOnboardingComplete}
           />
         );
@@ -191,33 +428,67 @@ export default function App() {
               onLogin={(loginUser) => {
                 setUser(loginUser);
                 setIsNewUser(false);
+                setRecipeRecords([]);
                 setCurrentPage('home');
+                loadUserProfile(loginUser.email);
+                loadRecipeRecords(loginUser.email);
+                loadHealthGoals(loginUser.email);
+                loadPreferences(loginUser.email);
               }}
               onRegister={(newUser) => {
                 setUser(newUser);
                 setIsNewUser(true);
+                setUserProfile(null);
+                setRecipeRecords([]);
+                setHealthGoals([]);
+                setPreferences([]);
+                setChatMessages([]);
                 setCurrentPage('onboarding');
               }}
             />
           );
         }
-        return <Home userName={user?.name} onAddRecipeRecord={(record) => setRecipeRecords((records) => [record, ...records])} />;
+        return <Home userName={user?.name} recipeRecords={recipeRecords} onAddRecipeRecord={saveRecipeRecord} />;
       case 'analysis':
         return <FoodAnalysis recipeRecords={recipeRecords} />;
       case 'tools':
         return <Tools initialSection="overview" onNavigatePage={(page) => setCurrentPage(page)} />;
       case 'chat':
-        return <MascotChat onBack={() => setCurrentPage('home')} />;
+        return <MascotChat messages={chatMessages} onBack={() => setCurrentPage('home')} />;
       case 'profile':
-        return <HealthProfile user={user} userProfile={userProfile} />;
+        return (
+          <HealthProfile
+            user={user}
+            userProfile={userProfile}
+            healthGoals={healthGoals}
+            recipeRecordCount={recipeRecords.length}
+            onAddHealthGoal={addHealthGoal}
+            onUpdateProfile={updateProfileFromSettings}
+            onLogout={handleLogout}
+          />
+        );
       case 'report':
         return <Tools initialSection="weekly" onNavigatePage={(page) => setCurrentPage(page)} />;
       case 'settings':
         return <Settings onBack={() => setCurrentPage('tools')} onNavigatePage={(page) => setCurrentPage(page)} />;
       case 'preferences':
-        return <Preferences onBack={() => setCurrentPage('settings')} />;
+        return (
+          <Preferences
+            onBack={() => setCurrentPage('settings')}
+            preferences={preferences}
+            onAddPreference={addPreference}
+            onRemovePreference={removePreference}
+          />
+        );
       case 'goals':
-        return <Goals onBack={() => setCurrentPage('settings')} />;
+        return (
+          <Goals
+            onBack={() => setCurrentPage('settings')}
+            goals={healthGoals}
+            onAddGoal={addHealthGoal}
+            onRemoveGoal={removeHealthGoal}
+          />
+        );
       default:
         if (!user) {
           setCurrentPage('auth');
@@ -226,17 +497,27 @@ export default function App() {
               onLogin={(loginUser) => {
                 setUser(loginUser);
                 setIsNewUser(false);
+                setRecipeRecords([]);
                 setCurrentPage('home');
+                loadUserProfile(loginUser.email);
+                loadRecipeRecords(loginUser.email);
+                loadHealthGoals(loginUser.email);
+                loadPreferences(loginUser.email);
               }}
               onRegister={(newUser) => {
                 setUser(newUser);
                 setIsNewUser(true);
+                setUserProfile(null);
+                setRecipeRecords([]);
+                setHealthGoals([]);
+                setPreferences([]);
+                setChatMessages([]);
                 setCurrentPage('onboarding');
               }}
             />
           );
         }
-        return <Home userName={user?.name} onAddRecipeRecord={(record) => setRecipeRecords((records) => [record, ...records])} />;
+        return <Home userName={user?.name} recipeRecords={recipeRecords} onAddRecipeRecord={saveRecipeRecord} />;
     }
   };
 
