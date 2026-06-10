@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { HealthSummary } from '@/app/types/health';
 import {
   AlertCircle,
   Bell,
@@ -37,32 +38,11 @@ import {
 type HealthSection = 'overview' | 'weekly' | 'risk' | 'reminders' | 'goals' | 'privacy';
 
 interface ToolsProps {
+  userEmail?: string | null;
+  recipeRecordCount?: number;
   initialSection?: HealthSection;
   onNavigatePage?: (page: 'settings' | 'preferences' | 'goals') => void;
 }
-
-const riskTrendData = [
-  { date: '周一', risk: 3 },
-  { date: '周二', risk: 2 },
-  { date: '周三', risk: 4 },
-  { date: '周四', risk: 3 },
-  { date: '周五', risk: 2 },
-  { date: '周六', risk: 1 },
-  { date: '周日', risk: 2 }
-];
-
-const intakeTrendData = [
-  { date: '第 1 周', value: 76 },
-  { date: '第 2 周', value: 82 },
-  { date: '第 3 周', value: 79 },
-  { date: '第 4 周', value: 86 }
-];
-
-const summaryStats = [
-  { value: '28', label: '识别记录', tone: 'bg-[#F0FBEF] text-[#15803D]' },
-  { value: '7', label: '连续记录', tone: 'bg-[#EFF7FF] text-[#2563EB]' },
-  { value: '3', label: '风险提醒', tone: 'bg-[#FFF7E6] text-[#B7791F]' }
-];
 
 const sectionCards: Array<{
   id: HealthSection;
@@ -108,27 +88,6 @@ const sectionCards: Array<{
   }
 ];
 
-const reminders = [
-  {
-    type: 'medication',
-    title: '降压药提醒',
-    time: '每日 08:00',
-    note: '建议饭后服用，避免空腹不适。'
-  },
-  {
-    type: 'diet',
-    title: '午餐小提醒',
-    time: '每日 12:00',
-    note: '今天少选油炸菜，主食可以换成杂粮饭。'
-  },
-  {
-    type: 'review',
-    title: '复盘今日摄入',
-    time: '每日 20:30',
-    note: '看看热量和三大营养素有没有明显超出目标。'
-  }
-];
-
 const tooltipStyle = {
   backgroundColor: '#FFFFFF',
   border: '1px solid rgba(76, 203, 99, 0.16)',
@@ -136,10 +95,50 @@ const tooltipStyle = {
   boxShadow: '0 8px 24px rgba(76, 203, 99, 0.12)'
 };
 
-export default function Tools({ initialSection = 'overview', onNavigatePage }: ToolsProps) {
+export default function Tools({ userEmail, recipeRecordCount = 0, initialSection = 'overview', onNavigatePage }: ToolsProps) {
   const [activeSection, setActiveSection] = useState<HealthSection>(initialSection);
   const [activeDialog, setActiveDialog] = useState<'reminders' | null>(null);
   const [reminderSettingsState, setReminderSettingsState] = useState({ medication: true, diet: true, review: true });
+  const [healthSummary, setHealthSummary] = useState<HealthSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    if (!userEmail) {
+      setHealthSummary(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadSummary = async () => {
+      setIsLoading(true);
+      setLoadError('');
+      try {
+        const response = await fetch(`/api/health/summary?email=${encodeURIComponent(userEmail)}`);
+        if (!response.ok) {
+          throw new Error('加载健康数据失败');
+        }
+        const data = (await response.json()) as HealthSummary;
+        if (!cancelled) {
+          setHealthSummary(data);
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setLoadError('暂时无法加载个性化健康数据，请稍后重试。');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [userEmail, recipeRecordCount]);
 
   const visibleCards = sectionCards.filter((card) => card.id !== 'privacy');
 
@@ -161,7 +160,9 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
   };
 
   const exportHealthReport = () => {
-    const report = `食知健康报告\n\n本周饮食小结：高盐次数少了 2 次，晚餐更清淡。\n\n关键指标：\n- 风险次数：下降 35%\n- 均衡程度：提升 12%\n\n建议：\n- 控制红烧、糖醋、炸物次数\n- 晚餐增加绿叶菜\n- 继续保持低盐、低糖、低脂饮食\n\n感谢使用食知 FoodSense。`;
+    if (!healthSummary) return;
+
+    const report = `食知健康报告\n\n本周饮食小结：${healthSummary.weekSummary.title}\n${healthSummary.weekSummary.description}\n\n关键指标：\n- 风险次数：${healthSummary.weeklyMetrics.riskChangeLabel}\n- 均衡程度：${healthSummary.weeklyMetrics.balanceChangeLabel}\n\n本周主要风险：\n${healthSummary.mainRiskTags.map((tag) => `- ${tag}`).join('\n')}\n\n下周小目标：\n${healthSummary.nextWeekGoals.map((goal) => `- ${goal.title}：${goal.note}`).join('\n')}\n\n${healthSummary.weeklyReport}\n\n感谢使用食知 FoodSense。`;
     const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -189,6 +190,12 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
       </div>
 
       <div className="space-y-4 px-5 py-4">
+        {loadError && (
+          <Card className="border-[#FECACA] bg-[#FEF2F2] p-4 text-sm text-[#B91C1C]">
+            {loadError}
+          </Card>
+        )}
+
         <Card className="overflow-hidden border-[#BDEFC3] bg-[#FFFDF7] p-5 shadow-[0_10px_28px_rgba(76,203,99,0.12)]">
           <div className="flex items-start gap-3">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[20px] bg-[#DCF8D8] text-[#15803D]">
@@ -197,17 +204,21 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-[#4B8B5A]">本周饮食小结</p>
               <h2 className="mt-1 text-xl font-extrabold leading-7 text-[#17221B]">
-                高盐次数少了 2 次，晚餐更清淡了
+                {isLoading ? '正在生成你的周报...' : healthSummary?.weekSummary.title ?? '登录后开始生成个性化周报'}
               </h2>
               <p className="mt-2 text-sm leading-6 text-[#5F6F63]">
-                油炸类还可以再降一点。下周优先把红烧、糖醋、炸物控制在 2 次以内，搭配绿叶菜会更稳。
+                {healthSummary?.weekSummary.description ?? '记录饮食后，这里会根据你的目标和实际摄入自动更新。'}
               </p>
             </div>
           </div>
         </Card>
 
         <div className="grid grid-cols-3 gap-3">
-          {summaryStats.map((stat) => (
+          {(healthSummary?.summaryStats ?? [
+            { value: '0', label: '识别记录', tone: 'bg-[#F0FBEF] text-[#15803D]' },
+            { value: '0', label: '连续记录', tone: 'bg-[#EFF7FF] text-[#2563EB]' },
+            { value: '0', label: '风险提醒', tone: 'bg-[#FFF7E6] text-[#B7791F]' }
+          ]).map((stat) => (
             <Card key={stat.label} className={`rounded-[22px] p-3 text-center shadow-[0_6px_16px_rgba(15,23,42,0.06)] ${stat.tone}`}>
               <p className="text-2xl font-extrabold">{stat.value}</p>
               <p className="mt-1 text-xs font-semibold opacity-80">{stat.label}</p>
@@ -275,7 +286,7 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
                 <h2 className="text-lg font-extrabold text-[#15803D]">饮食周报</h2>
               </div>
               <p className="text-sm leading-6 text-[#4B5563]">
-                本周清淡菜占比提升，晚餐热量更平稳。需要注意的是糖醋、红烧类菜品仍容易带来高糖和高脂风险。
+                {healthSummary?.weeklyReport ?? '记录饮食后，这里会展示你的个性化周报分析。'}
               </p>
             </Card>
 
@@ -287,23 +298,40 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
                     <TrendingDown className="h-4 w-4 text-[#16A34A]" strokeWidth={1.8} />
                     <span className="text-sm text-[#4B5563]">风险次数</span>
                   </div>
-                  <p className="text-2xl font-extrabold text-[#15803D]">下降 35%</p>
-                  <p className="mt-1 text-xs text-[#6B7280]">比上周少了一些</p>
+                  <p className="text-2xl font-extrabold text-[#15803D]">
+                    {healthSummary?.weeklyMetrics.riskChangeLabel ?? '暂无数据'}
+                  </p>
+                  <p className="mt-1 text-xs text-[#6B7280]">
+                    {healthSummary?.weeklyMetrics.riskTrend === 'down'
+                      ? '比上周少了一些'
+                      : healthSummary?.weeklyMetrics.riskTrend === 'up'
+                        ? '比上周略多'
+                        : '与上周接近'}
+                  </p>
                 </div>
                 <div className="rounded-[20px] bg-[#EFF7FF] p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-[#5BA7F7]" strokeWidth={1.8} />
                     <span className="text-sm text-[#4B5563]">均衡程度</span>
                   </div>
-                  <p className="text-2xl font-extrabold text-[#2563EB]">提升 12%</p>
-                  <p className="mt-1 text-xs text-[#6B7280]">饮食更稳定了</p>
+                  <p className="text-2xl font-extrabold text-[#2563EB]">
+                    {healthSummary?.weeklyMetrics.balanceChangeLabel ?? '暂无数据'}
+                  </p>
+                  <p className="mt-1 text-xs text-[#6B7280]">
+                    {healthSummary?.weeklyMetrics.balanceTrend === 'up'
+                      ? '饮食更稳定了'
+                      : healthSummary?.weeklyMetrics.balanceTrend === 'down'
+                        ? '还可以再均衡一点'
+                        : '与上周接近'}
+                  </p>
                 </div>
               </div>
             </Card>
             <button
               type="button"
               onClick={exportHealthReport}
-              className="w-full rounded-full bg-[#15803D] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#12702E]"
+              disabled={!healthSummary}
+              className="w-full rounded-full bg-[#15803D] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#12702E] disabled:cursor-not-allowed disabled:bg-[#A7D7AF]"
             >
               导出健康报告
             </button>
@@ -315,7 +343,7 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
             <Card className="bg-[#FFFDF7] p-5">
               <h2 className="mb-4 text-lg font-extrabold text-[#17221B]">饮食风险趋势</h2>
               <ResponsiveContainer width="100%" height={210}>
-                <LineChart data={riskTrendData}>
+                <LineChart data={healthSummary?.riskTrendData ?? []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#6B7280" />
                   <YAxis tick={{ fontSize: 12 }} stroke="#6B7280" />
@@ -335,7 +363,7 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
             <Card className="border-[#FFE1A6] bg-[#FFF7E6] p-5">
               <h3 className="mb-2 text-lg font-extrabold text-[#B7791F]">本周主要风险</h3>
               <div className="flex flex-wrap gap-2">
-                {['高盐 3 次', '高脂 2 次', '高糖 2 次'].map((tag) => (
+                {(healthSummary?.mainRiskTags ?? ['暂无风险数据']).map((tag) => (
                   <span key={tag} className="rounded-full bg-white/75 px-3 py-1 text-sm font-semibold text-[#B7791F]">
                     {tag}
                   </span>
@@ -356,7 +384,7 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
             </div>
 
             <div className="space-y-3">
-              {reminders.map((reminder) => (
+              {(healthSummary?.reminders ?? []).map((reminder) => (
                 <div key={reminder.title} className="flex items-start gap-3 rounded-[20px] border border-[#BFDBFE] bg-[#EFF7FF] p-3">
                   {reminder.type === 'medication' && <Pill className="mt-0.5 h-5 w-5 text-[#5BA7F7]" strokeWidth={1.8} />}
                   {reminder.type === 'diet' && <AlertCircle className="mt-0.5 h-5 w-5 text-[#FFB84D]" strokeWidth={1.8} />}
@@ -386,21 +414,19 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
             <Card className="border-[#BDEFC3] bg-[#FFFDF7] p-5">
               <h2 className="mb-2 text-lg font-extrabold text-[#17221B]">下周小目标</h2>
               <p className="text-sm leading-6 text-[#5F6F63]">
-                把油炸类控制在 2 次以内，晚餐多加一份绿叶菜。目标不用太大，能坚持就很好。
+                {healthSummary?.hasEnoughData
+                  ? '以下目标根据你最近 7 天的饮食记录生成，不用太大，能坚持就很好。'
+                  : '先记录几餐，系统才能为你生成更贴合的下周目标。'}
               </p>
               <div className="mt-4 space-y-3">
-                {[
-                  ['少油炸', '本周 4 次，目标 2 次以内', '70%'],
-                  ['多蔬菜', '晚餐补一份绿叶菜', '55%'],
-                  ['控甜口', '糖醋类换成清炒或蒸煮', '45%']
-                ].map(([title, note, width]) => (
-                  <div key={title} className="rounded-[18px] bg-[#F7FFF4] p-3">
+                {(healthSummary?.nextWeekGoals ?? []).map((goal) => (
+                  <div key={goal.title} className="rounded-[18px] bg-[#F7FFF4] p-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="font-bold text-[#17221B]">{title}</span>
-                      <span className="text-xs text-[#6B7280]">{note}</span>
+                      <span className="font-bold text-[#17221B]">{goal.title}</span>
+                      <span className="text-xs text-[#6B7280]">{goal.note}</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-[#E6EFE5]">
-                      <div className="h-full rounded-full bg-[#4CCB63]" style={{ width }} />
+                      <div className="h-full rounded-full bg-[#4CCB63]" style={{ width: `${goal.progress}%` }} />
                     </div>
                   </div>
                 ))}
@@ -410,10 +436,10 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
             <Card className="bg-[#FFFDF7] p-5">
               <h3 className="mb-4 text-lg font-extrabold text-[#17221B]">均衡趋势</h3>
               <ResponsiveContainer width="100%" height={190}>
-                <AreaChart data={intakeTrendData}>
+                <AreaChart data={healthSummary?.intakeTrendData ?? []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#6B7280" />
-                  <YAxis tick={{ fontSize: 12 }} stroke="#6B7280" domain={[70, 90]} />
+                  <YAxis tick={{ fontSize: 12 }} stroke="#6B7280" domain={[0, 100]} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Area type="monotone" dataKey="value" stroke="#4CCB63" fill="#DCF8D8" strokeWidth={3} />
                 </AreaChart>
@@ -433,7 +459,7 @@ export default function Tools({ initialSection = 'overview', onNavigatePage }: T
             <div className="space-y-4 py-2">
               {activeDialog === 'reminders' && (
                 <div className="space-y-4">
-                  {reminders.map((reminder) => (
+                  {(healthSummary?.reminders ?? []).map((reminder) => (
                     <div key={reminder.title} className="rounded-2xl border border-[#BFDBFE] bg-[#EFF7FF] p-4">
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <div>

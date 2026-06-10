@@ -13,6 +13,7 @@ import { Badge } from '@/app/components/ui/badge';
 import CameraRecognition from '@/app/components/CameraRecognition';
 import LoadingAnalysis from '@/app/components/LoadingAnalysis';
 import type { CookingTechnique, FoodRecommendation, MealTag, RecipeRecord } from '@/app/types/food';
+import type { NutritionTargets } from '@/app/types/nutrition';
 
 interface AnalysisResult {
   foodName: string;
@@ -30,14 +31,22 @@ interface AnalysisResult {
 interface HomeProps {
   onAddRecipeRecord: (record: RecipeRecord) => void;
   recipeRecords: RecipeRecord[];
+  userEmail?: string | null;
   userName?: string;
 }
 
-const dailyTargets = {
+const defaultTargets: NutritionTargets = {
   calories: 1800,
   carbs: 220,
   protein: 90,
-  fat: 60
+  fat: 60,
+  bmr: 0,
+  tdee: 0,
+  heightCm: 0,
+  weightKg: 0,
+  ageYears: 0,
+  source: 'estimated',
+  note: '登录并完善资料后，将为你计算专属目标'
 };
 
 const mealTags: MealTag[] = ['早餐', '午餐', '晚餐', '夜宵', '零食', '其他'];
@@ -50,12 +59,13 @@ const formatDateKey = (date: Date) =>
 const formatDateBadge = (date: Date) =>
   `${padDatePart(date.getMonth() + 1)} 月 ${padDatePart(date.getDate())} 日`;
 
-export default function Home({ onAddRecipeRecord, recipeRecords, userName }: HomeProps) {
+export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, userName }: HomeProps) {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<MealTag>('午餐');
   const [today, setToday] = useState(() => new Date());
+  const [dailyTargets, setDailyTargets] = useState<NutritionTargets>(defaultTargets);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -64,6 +74,32 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userName }: Hom
 
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!userEmail) {
+      setDailyTargets(defaultTargets);
+      return;
+    }
+
+    let cancelled = false;
+    const loadTargets = async () => {
+      try {
+        const response = await fetch(`/api/nutrition/targets?email=${encodeURIComponent(userEmail)}`);
+        if (!response.ok) return;
+        const targets = (await response.json()) as NutritionTargets;
+        if (!cancelled) {
+          setDailyTargets(targets);
+        }
+      } catch (error) {
+        console.error('加载营养目标失败', error);
+      }
+    };
+
+    loadTargets();
+    return () => {
+      cancelled = true;
+    };
+  }, [userEmail, recipeRecords.length]);
 
   const getProgress = (current: number, target: number) => ({
     percent: Math.min((current / target) * 100, 100),
@@ -272,6 +308,9 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userName }: Hom
                   style={{ width: `${calorieProgress.percent}%` }}
                 />
               </div>
+              {userEmail && (
+                <p className="mt-2 max-w-[240px] text-xs leading-5 text-[#6B7280]">{dailyTargets.note}</p>
+              )}
               <div className="relative mt-4 inline-flex whitespace-nowrap rounded-full bg-[#FFEFA6] px-5 py-2.5 text-[16px] font-semibold text-[#5B5E52] shadow-[0_6px_14px_rgba(255,232,138,0.20)]">
                 今天吃了什么？拍给我看看～
                 <span className="absolute -bottom-1.5 left-7 h-3 w-3 rotate-45 bg-[#FFEFA6]" />

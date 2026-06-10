@@ -89,6 +89,8 @@ export default function App() {
     gender: string;
     dietStyle: string;
     mood: string;
+    height?: string;
+    weight?: string;
   } | null>(null);
   const [healthGoals, setHealthGoals] = useState<string[]>([]);
   const [preferences, setPreferences] = useState<string[]>([]);
@@ -120,6 +122,8 @@ export default function App() {
     gender: string;
     dietStyle: string;
     mood: string;
+    height?: string;
+    weight?: string;
   }) => {
     if (!user) return;
     try {
@@ -159,6 +163,8 @@ export default function App() {
     gender: string;
     dietStyle: string;
     mood: string;
+    height?: string;
+    weight?: string;
   }) => {
     if (!user) return;
 
@@ -168,7 +174,9 @@ export default function App() {
       age: nextProfile.age,
       gender: nextProfile.gender,
       dietStyle: nextProfile.dietStyle,
-      mood: nextProfile.mood
+      mood: nextProfile.mood,
+      height: nextProfile.height ?? '',
+      weight: nextProfile.weight ?? ''
     };
 
     setUser(nextUser);
@@ -448,13 +456,27 @@ export default function App() {
             />
           );
         }
-        return <Home userName={user?.name} recipeRecords={recipeRecords} onAddRecipeRecord={saveRecipeRecord} />;
+        return (
+          <Home
+            userEmail={user?.email}
+            userName={user?.name}
+            recipeRecords={recipeRecords}
+            onAddRecipeRecord={saveRecipeRecord}
+          />
+        );
       case 'analysis':
         return <FoodAnalysis recipeRecords={recipeRecords} />;
       case 'tools':
-        return <Tools initialSection="overview" onNavigatePage={(page) => setCurrentPage(page)} />;
+        return (
+          <Tools
+            userEmail={user?.email}
+            recipeRecordCount={recipeRecords.length}
+            initialSection="overview"
+            onNavigatePage={(page) => setCurrentPage(page)}
+          />
+        );
       case 'chat':
-        return <MascotChat messages={chatMessages} onBack={() => setCurrentPage('home')} />;
+        return <MascotChat userEmail={user?.email} userName={user?.name} onBack={() => setCurrentPage('home')} />;
       case 'profile':
         return (
           <HealthProfile
@@ -468,7 +490,14 @@ export default function App() {
           />
         );
       case 'report':
-        return <Tools initialSection="weekly" onNavigatePage={(page) => setCurrentPage(page)} />;
+        return (
+          <Tools
+            userEmail={user?.email}
+            recipeRecordCount={recipeRecords.length}
+            initialSection="weekly"
+            onNavigatePage={(page) => setCurrentPage(page)}
+          />
+        );
       case 'settings':
         return <Settings onBack={() => setCurrentPage('tools')} onNavigatePage={(page) => setCurrentPage(page)} />;
       case 'preferences':
@@ -517,7 +546,14 @@ export default function App() {
             />
           );
         }
-        return <Home userName={user?.name} recipeRecords={recipeRecords} onAddRecipeRecord={saveRecipeRecord} />;
+        return (
+          <Home
+            userEmail={user?.email}
+            userName={user?.name}
+            recipeRecords={recipeRecords}
+            onAddRecipeRecord={saveRecipeRecord}
+          />
+        );
     }
   };
 

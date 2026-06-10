@@ -3,6 +3,9 @@ const cors = require('cors');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const { buildHealthSummary, buildHealthProfile, loadUserHealthContext } = require('./healthAnalytics');
+const { buildNutritionTargets } = require('./nutritionTargets');
+const { buildChatContext, buildWelcomeMessage, generateAssistantReply } = require('./chatAssistant');
 
 const app = express();
 const PORT = process.env.PORT || 4001;
@@ -12,7 +15,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Failed to open database', err);
     process.exit(1);
-  }
+  } 
 });
 
 db.serialize(() => {
@@ -87,6 +90,22 @@ db.serialize(() => {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  db.run('CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created ON chat_messages(user_id, created_at)');
+
+  db.run(`ALTER TABLE profiles ADD COLUMN height TEXT`, () => {});
+  db.run(`ALTER TABLE profiles ADD COLUMN weight TEXT`, () => {});
 });
 
 app.use(cors({ origin: 'http://localhost:5173' }));
@@ -142,7 +161,7 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.post('/api/profile', (req, res) => {
-  const { email, name, goal, age, gender, dietStyle, mood } = req.body || {};
+  const { email, name, goal, age, gender, dietStyle, mood, height, weight } = req.body || {};
   if (!email) {
     return res.status(400).json({ error: '缺少用户邮箱，无法保存个人资料。' });
   }
@@ -158,23 +177,25 @@ app.post('/api/profile', (req, res) => {
     }
 
     db.run(
-      `INSERT INTO profiles (user_id, goal, age, gender, dietStyle, mood, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `INSERT INTO profiles (user_id, goal, age, gender, dietStyle, mood, height, weight, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(user_id) DO UPDATE SET
          goal = excluded.goal,
          age = excluded.age,
          gender = excluded.gender,
          dietStyle = excluded.dietStyle,
          mood = excluded.mood,
+         height = excluded.height,
+         weight = excluded.weight,
          updated_at = CURRENT_TIMESTAMP`,
-      [row.id, goal, age, gender, dietStyle, mood],
+      [row.id, goal, age, gender, dietStyle, mood, height, weight],
       function (profileErr) {
         if (profileErr) {
           console.error(profileErr);
           return res.status(500).json({ error: '保存个人资料失败，请稍后重试。' });
         }
 
-        res.json({ userId: row.id, goal, age, gender, dietStyle, mood });
+        res.json({ userId: row.id, goal, age, gender, dietStyle, mood, height, weight });
       }
     );
   });
@@ -187,7 +208,7 @@ app.get('/api/profile', (req, res) => {
   }
 
   db.get(
-    `SELECT p.goal, p.age, p.gender, p.dietStyle, p.mood
+    `SELECT p.goal, p.age, p.gender, p.dietStyle, p.mood, p.height, p.weight
      FROM profiles p
      JOIN users u ON u.id = p.user_id
      WHERE u.email = ?`,
@@ -490,6 +511,197 @@ app.delete('/api/preferences', (req, res) => {
         }
 
         res.json({ deleted: true });
+      }
+    );
+  });
+});
+
+const handleHealthRequest = (req, res, builder) => {
+  const email = String(req.query.email || '');
+  if (!email) {
+    return res.status(400).json({ error: 'Missing email.' });
+  }
+
+  loadUserHealthContext(db, email, (err, context) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to load health insights.' });
+    }
+
+    if (!context) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    res.json(
+      builder({
+        records: context.records,
+        profile: context.profile,
+        goals: context.goals,
+        preferences: context.preferences,
+      })
+    );
+  });
+};
+
+app.get('/api/health/summary', (req, res) => {
+  handleHealthRequest(req, res, buildHealthSummary);
+});
+
+app.get('/api/health/profile', (req, res) => {
+  handleHealthRequest(req, res, buildHealthProfile);
+});
+
+app.get('/api/nutrition/targets', (req, res) => {
+  const email = String(req.query.email || '');
+  if (!email) {
+    return res.status(400).json({ error: 'Missing email.' });
+  }
+
+  loadUserHealthContext(db, email, (err, context) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to load nutrition targets.' });
+    }
+
+    if (!context) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    res.json(buildNutritionTargets({ profile: context.profile }));
+  });
+});
+
+const toChatMessage = (row) => ({
+  id: row.id,
+  from: row.role === 'user' ? 'user' : 'assistant',
+  text: row.text,
+  createdAt: row.created_at,
+});
+
+const insertChatMessage = (userId, role, text, callback) => {
+  const id = `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  db.run(
+    'INSERT INTO chat_messages (id, user_id, role, text) VALUES (?, ?, ?, ?)',
+    [id, userId, role, text],
+    (err) => callback(err, { id, from: role === 'user' ? 'user' : 'assistant', text, createdAt: new Date().toISOString() })
+  );
+};
+
+app.get('/api/chat/messages', (req, res) => {
+  const email = String(req.query.email || '');
+  if (!email) {
+    return res.status(400).json({ error: 'Missing email.' });
+  }
+
+  loadUserHealthContext(db, email, (err, context) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to load chat messages.' });
+    }
+
+    if (!context) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    db.all(
+      'SELECT id, role, text, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC, id ASC',
+      [context.userId],
+      (messageErr, rows) => {
+        if (messageErr) {
+          console.error(messageErr);
+          return res.status(500).json({ error: 'Failed to load chat messages.' });
+        }
+
+        const messages = (rows || []).map(toChatMessage);
+        if (messages.length > 0) {
+          return res.json(messages);
+        }
+
+        const chatContext = buildChatContext({
+          userName: context.userName,
+          profile: context.profile,
+          goals: context.goals,
+          preferences: context.preferences,
+          records: context.records,
+        });
+        const welcomeText = buildWelcomeMessage(chatContext);
+
+        insertChatMessage(context.userId, 'assistant', welcomeText, (insertErr, welcomeMessage) => {
+          if (insertErr) {
+            console.error(insertErr);
+            return res.status(500).json({ error: 'Failed to initialize chat.' });
+          }
+
+          res.json([welcomeMessage]);
+        });
+      }
+    );
+  });
+});
+
+app.post('/api/chat', async (req, res) => {
+  const { email, message } = req.body || {};
+  const normalizedMessage = String(message || '').trim();
+  if (!email || !normalizedMessage) {
+    return res.status(400).json({ error: 'Missing email or message.' });
+  }
+
+  loadUserHealthContext(db, email, async (err, context) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to send chat message.' });
+    }
+
+    if (!context) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    db.all(
+      'SELECT role, text FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC, id ASC LIMIT 12',
+      [context.userId],
+      async (historyErr, historyRows) => {
+        if (historyErr) {
+          console.error(historyErr);
+          return res.status(500).json({ error: 'Failed to load chat history.' });
+        }
+
+        const chatContext = buildChatContext({
+          userName: context.userName,
+          profile: context.profile,
+          goals: context.goals,
+          preferences: context.preferences,
+          records: context.records,
+        });
+
+        insertChatMessage(context.userId, 'user', normalizedMessage, async (userErr, userMessage) => {
+          if (userErr) {
+            console.error(userErr);
+            return res.status(500).json({ error: 'Failed to save user message.' });
+          }
+
+          try {
+            const replyText = await generateAssistantReply({
+              message: normalizedMessage,
+              history: (historyRows || []).map((row) => ({ role: row.role, text: row.text })),
+              context: chatContext,
+            });
+
+            insertChatMessage(context.userId, 'assistant', replyText, (assistantErr, assistantMessage) => {
+              if (assistantErr) {
+                console.error(assistantErr);
+                return res.status(500).json({ error: 'Failed to save assistant message.' });
+              }
+
+              res.status(201).json({
+                userMessage,
+                assistantMessage,
+              });
+            });
+          } catch (replyErr) {
+            console.error(replyErr);
+            res.status(500).json({ error: 'Failed to generate assistant reply.' });
+          }
+        });
       }
     );
   });
