@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -6,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const { buildHealthSummary, buildHealthProfile, loadUserHealthContext } = require('./healthAnalytics');
 const { buildNutritionTargets } = require('./nutritionTargets');
 const { buildChatContext, buildWelcomeMessage, generateAssistantReply } = require('./chatAssistant');
+const { analyzeFoodImage } = require('./foodVision');
 
 const app = express();
 const PORT = process.env.PORT || 4001;
@@ -106,10 +109,30 @@ db.serialize(() => {
 
   db.run(`ALTER TABLE profiles ADD COLUMN height TEXT`, () => {});
   db.run(`ALTER TABLE profiles ADD COLUMN weight TEXT`, () => {});
+  db.run(`ALTER TABLE profiles ADD COLUMN reminder_settings TEXT`, () => {});
 });
 
+const defaultReminderSettings = {
+  medication: true,
+  diet: true,
+  review: true,
+};
+
+const parseReminderSettings = (value) => {
+  try {
+    const parsed = JSON.parse(value || '{}');
+    return {
+      medication: parsed.medication !== false,
+      diet: parsed.diet !== false,
+      review: parsed.review !== false,
+    };
+  } catch (_err) {
+    return { ...defaultReminderSettings };
+  }
+};
+
 app.use(cors({ origin: 'http://localhost:5173' }));
-app.use(express.json());
+app.use(express.json({ limit: '12mb' }));
 
 app.get('/api/ping', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -549,6 +572,96 @@ app.get('/api/health/summary', (req, res) => {
 
 app.get('/api/health/profile', (req, res) => {
   handleHealthRequest(req, res, buildHealthProfile);
+});
+
+app.get('/api/reminders/settings', (req, res) => {
+  const email = String(req.query.email || '');
+  if (!email) {
+    return res.status(400).json({ error: 'Missing email.' });
+  }
+
+  db.get(
+    `SELECT p.reminder_settings
+     FROM users u
+     LEFT JOIN profiles p ON p.user_id = u.id
+     WHERE u.email = ?`,
+    [email],
+    (err, row) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Failed to load reminder settings.' });
+      }
+
+      res.json(parseReminderSettings(row?.reminder_settings));
+    }
+  );
+});
+
+app.post('/api/reminders/settings', (req, res) => {
+  const { email, settings } = req.body || {};
+  if (!email || !settings) {
+    return res.status(400).json({ error: 'Missing email or settings.' });
+  }
+
+  const nextSettings = parseReminderSettings(JSON.stringify(settings));
+
+  db.get('SELECT id FROM users WHERE email = ?', [email], (err, userRow) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Failed to save reminder settings.' });
+    }
+
+    if (!userRow) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    db.run(
+      `INSERT INTO profiles (user_id, reminder_settings, updated_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id) DO UPDATE SET
+         reminder_settings = excluded.reminder_settings,
+         updated_at = CURRENT_TIMESTAMP`,
+      [userRow.id, JSON.stringify(nextSettings)],
+      (saveErr) => {
+        if (saveErr) {
+          console.error(saveErr);
+          return res.status(500).json({ error: 'Failed to save reminder settings.' });
+        }
+
+        res.json(nextSettings);
+      }
+    );
+  });
+});
+
+app.post('/api/analyze', async (req, res) => {
+  const { email, imageDataUrl, mode } = req.body || {};
+  if (!email || !imageDataUrl) {
+    return res.status(400).json({ error: '缺少邮箱或图片数据。' });
+  }
+
+  loadUserHealthContext(db, email, async (err, context) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: '分析失败，请稍后重试。' });
+    }
+
+    if (!context) {
+      return res.status(404).json({ error: '用户不存在，请先登录。' });
+    }
+
+    try {
+      const result = await analyzeFoodImage({
+        imageDataUrl: String(imageDataUrl),
+        mode: mode || 'food',
+        userContext: context,
+      });
+      res.json(result);
+    } catch (analyzeErr) {
+      console.error(analyzeErr);
+      res.status(500).json({ error: analyzeErr.message || '食物识别失败，请稍后重试。' });
+    }
+  });
 });
 
 app.get('/api/nutrition/targets', (req, res) => {

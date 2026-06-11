@@ -1,5 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { HealthSummary } from '@/app/types/health';
+import {
+  defaultReminderSettings,
+  type ReminderSettingKey,
+  type ReminderSettings
+} from '@/app/types/reminders';
 import {
   AlertCircle,
   Bell,
@@ -98,7 +103,8 @@ const tooltipStyle = {
 export default function Tools({ userEmail, recipeRecordCount = 0, initialSection = 'overview', onNavigatePage }: ToolsProps) {
   const [activeSection, setActiveSection] = useState<HealthSection>(initialSection);
   const [activeDialog, setActiveDialog] = useState<'reminders' | null>(null);
-  const [reminderSettingsState, setReminderSettingsState] = useState({ medication: true, diet: true, review: true });
+  const [reminderSettingsState, setReminderSettingsState] = useState<ReminderSettings>(defaultReminderSettings);
+  const [isSavingReminderSettings, setIsSavingReminderSettings] = useState(false);
   const [healthSummary, setHealthSummary] = useState<HealthSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -140,6 +146,38 @@ export default function Tools({ userEmail, recipeRecordCount = 0, initialSection
     };
   }, [userEmail, recipeRecordCount]);
 
+  useEffect(() => {
+    if (!userEmail) {
+      setReminderSettingsState(defaultReminderSettings);
+      return;
+    }
+
+    let cancelled = false;
+    const loadReminderSettings = async () => {
+      try {
+        const response = await fetch(`/api/reminders/settings?email=${encodeURIComponent(userEmail)}`);
+        if (!response.ok) return;
+        const settings = (await response.json()) as ReminderSettings;
+        if (!cancelled) {
+          setReminderSettingsState(settings);
+        }
+      } catch (error) {
+        console.error('加载提醒设置失败', error);
+      }
+    };
+
+    loadReminderSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [userEmail]);
+
+  const visibleReminders = useMemo(
+    () =>
+      (healthSummary?.reminders ?? []).filter((reminder) => reminderSettingsState[reminder.type as ReminderSettingKey] !== false),
+    [healthSummary?.reminders, reminderSettingsState]
+  );
+
   const visibleCards = sectionCards.filter((card) => card.id !== 'privacy');
 
   const handleNavigatePage = (page: 'settings' | 'preferences' | 'goals') => {
@@ -152,11 +190,44 @@ export default function Tools({ userEmail, recipeRecordCount = 0, initialSection
     }
   };
 
-  const toggleReminderSetting = (key: keyof typeof reminderSettingsState) => {
-    setReminderSettingsState((current) => ({
-      ...current,
-      [key]: !current[key]
-    }));
+  const toggleReminderSetting = async (key: ReminderSettingKey) => {
+    if (!userEmail || isSavingReminderSettings) return;
+
+    const previousSettings = reminderSettingsState;
+    const nextSettings = {
+      ...previousSettings,
+      [key]: !previousSettings[key]
+    };
+
+    setReminderSettingsState(nextSettings);
+    setIsSavingReminderSettings(true);
+
+    try {
+      const response = await fetch('/api/reminders/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, settings: nextSettings })
+      });
+
+      if (!response.ok) {
+        throw new Error('保存提醒设置失败');
+      }
+
+      const saved = (await response.json()) as ReminderSettings;
+      setReminderSettingsState(saved);
+    } catch (error) {
+      console.error(error);
+      setReminderSettingsState(previousSettings);
+      setLoadError('提醒设置保存失败，请稍后重试。');
+    } finally {
+      setIsSavingReminderSettings(false);
+    }
+  };
+
+  const reminderSettingLabels: Record<ReminderSettingKey, string> = {
+    medication: '服药 / 低盐提醒',
+    diet: '饮食提醒',
+    review: '复盘提醒'
   };
 
   const exportHealthReport = () => {
@@ -384,7 +455,12 @@ export default function Tools({ userEmail, recipeRecordCount = 0, initialSection
             </div>
 
             <div className="space-y-3">
-              {(healthSummary?.reminders ?? []).map((reminder) => (
+              {visibleReminders.length === 0 && (
+                <p className="rounded-[18px] bg-[#F7FFF4] p-4 text-sm text-[#6B7280]">
+                  当前没有开启的提醒。可在下方「管理提醒设置」中打开饮食或复盘提醒。
+                </p>
+              )}
+              {visibleReminders.map((reminder) => (
                 <div key={reminder.title} className="flex items-start gap-3 rounded-[20px] border border-[#BFDBFE] bg-[#EFF7FF] p-3">
                   {reminder.type === 'medication' && <Pill className="mt-0.5 h-5 w-5 text-[#5BA7F7]" strokeWidth={1.8} />}
                   {reminder.type === 'diet' && <AlertCircle className="mt-0.5 h-5 w-5 text-[#FFB84D]" strokeWidth={1.8} />}
@@ -459,38 +535,50 @@ export default function Tools({ userEmail, recipeRecordCount = 0, initialSection
             <div className="space-y-4 py-2">
               {activeDialog === 'reminders' && (
                 <div className="space-y-4">
-                  {(healthSummary?.reminders ?? []).map((reminder) => (
-                    <div key={reminder.title} className="rounded-2xl border border-[#BFDBFE] bg-[#EFF7FF] p-4">
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-[#17221B]">{reminder.title}</p>
-                          <p className="text-xs text-[#6B7280]">{reminder.time}</p>
-                        </div>
-                        <span className="rounded-full bg-[#DCF8D8] px-3 py-1 text-xs font-semibold text-[#15803D]">
-                          已开启
-                        </span>
-                      </div>
-                      <p className="text-sm text-[#4B5563]">{reminder.note}</p>
-                    </div>
-                  ))}
-                  <div className="space-y-2">
-                    {(
-                      Object.entries(reminderSettingsState) as Array<[keyof typeof reminderSettingsState, boolean]>
-                    ).map(([key, value]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => toggleReminderSetting(key)}
-                        className={`flex w-full items-center justify-between rounded-[18px] border px-4 py-3 text-left transition ${
-                          value ? 'border-[#4CCB63] bg-[#EFFFEF]' : 'border-[#D1D5DB] bg-white'
-                        }`}
+                  {(healthSummary?.reminders ?? []).map((reminder) => {
+                    const enabled = reminderSettingsState[reminder.type as ReminderSettingKey] !== false;
+                    return (
+                      <div
+                        key={reminder.title}
+                        className={`rounded-2xl border p-4 ${enabled ? 'border-[#BFDBFE] bg-[#EFF7FF]' : 'border-[#E5E7EB] bg-[#F9FAFB]'}`}
                       >
-                        <span className="text-sm font-medium text-[#17221B]">{key === 'medication' ? '服药提醒' : key === 'diet' ? '饮食提醒' : '复盘提醒'}</span>
-                        <span className={`text-sm font-semibold ${value ? 'text-[#15803D]' : 'text-[#6B7280]'}`}>
-                          {value ? '开启' : '关闭'}
-                        </span>
-                      </button>
-                    ))}
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-[#17221B]">{reminder.title}</p>
+                            <p className="text-xs text-[#6B7280]">{reminder.time}</p>
+                          </div>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              enabled ? 'bg-[#DCF8D8] text-[#15803D]' : 'bg-[#E5E7EB] text-[#6B7280]'
+                            }`}
+                          >
+                            {enabled ? '已开启' : '已关闭'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[#4B5563]">{reminder.note}</p>
+                      </div>
+                    );
+                  })}
+                  <div className="space-y-2">
+                    {(Object.keys(reminderSettingLabels) as ReminderSettingKey[]).map((key) => {
+                      const value = reminderSettingsState[key];
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          disabled={isSavingReminderSettings}
+                          onClick={() => toggleReminderSetting(key)}
+                          className={`flex w-full items-center justify-between rounded-[18px] border px-4 py-3 text-left transition disabled:opacity-60 ${
+                            value ? 'border-[#4CCB63] bg-[#EFFFEF]' : 'border-[#D1D5DB] bg-white'
+                          }`}
+                        >
+                          <span className="text-sm font-medium text-[#17221B]">{reminderSettingLabels[key]}</span>
+                          <span className={`text-sm font-semibold ${value ? 'text-[#15803D]' : 'text-[#6B7280]'}`}>
+                            {isSavingReminderSettings ? '保存中...' : value ? '开启' : '关闭'}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

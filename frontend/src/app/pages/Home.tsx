@@ -14,6 +14,9 @@ import CameraRecognition from '@/app/components/CameraRecognition';
 import LoadingAnalysis from '@/app/components/LoadingAnalysis';
 import type { CookingTechnique, FoodRecommendation, MealTag, RecipeRecord } from '@/app/types/food';
 import type { NutritionTargets } from '@/app/types/nutrition';
+import type { RecognitionMode } from '@/app/components/CameraRecognition';
+import { compressImageDataUrl } from '@/app/utils/compressImage';
+import { isLikelyBlankImage } from '@/app/utils/imageQuality';
 
 interface AnalysisResult {
   foodName: string;
@@ -26,6 +29,8 @@ interface AnalysisResult {
   ingredients: string[];
   cookingTechnique: CookingTechnique;
   cookingMethod: string;
+  summary?: string;
+  reasons?: string[];
 }
 
 interface HomeProps {
@@ -66,6 +71,7 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
   const [selectedMeal, setSelectedMeal] = useState<MealTag>('午餐');
   const [today, setToday] = useState(() => new Date());
   const [dailyTargets, setDailyTargets] = useState<NutritionTargets>(defaultTargets);
+  const [analysisError, setAnalysisError] = useState('');
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -149,53 +155,56 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
 
   const calorieProgress = getProgress(todayIntake.calories, dailyTargets.calories);
 
-  const mockAnalysis = (_imageDataUrl?: string) => {
+  const analyzeImage = async (imageDataUrl: string, mode: RecognitionMode = 'food') => {
+    if (!userEmail) {
+      setAnalysisError('请先登录后再拍照识别。');
+      return;
+    }
+
     setIsAnalyzing(true);
+    setAnalysisError('');
+    setAnalysisResult(null);
 
-    setTimeout(() => {
-      const mockResults: AnalysisResult[] = [
-        {
-          foodName: '红烧肉',
-          recommendation: 'not-recommended',
-          riskTags: ['高脂', '高热量', '高盐'],
-          calories: 520,
-          carbs: 18,
-          protein: 24,
-          fat: 39,
-          ingredients: ['五花肉', '冰糖', '酱油', '料酒'],
-          cookingTechnique: '红烧',
-          cookingMethod: '红烧慢炖'
-        },
-        {
-          foodName: '清蒸鲈鱼',
-          recommendation: 'recommended',
-          riskTags: [],
-          calories: 260,
-          carbs: 3,
-          protein: 35,
-          fat: 11,
-          ingredients: ['鲈鱼', '姜丝', '葱段', '蒸鱼豉油'],
-          cookingTechnique: '蒸',
-          cookingMethod: '清蒸'
-        },
-        {
-          foodName: '糖醋里脊',
-          recommendation: 'caution',
-          riskTags: ['高糖', '油炸'],
-          calories: 430,
-          carbs: 46,
-          protein: 21,
-          fat: 18,
-          ingredients: ['猪里脊', '鸡蛋', '淀粉', '糖醋汁'],
-          cookingTechnique: '油炸',
-          cookingMethod: '挂糊油炸后糖醋快炒'
-        }
-      ];
+    try {
+      if (await isLikelyBlankImage(imageDataUrl)) {
+        throw new Error('照片太暗或没有有效画面，请对准食物后重新拍摄。');
+      }
 
-      const randomResult = mockResults[Math.floor(Math.random() * mockResults.length)];
-      setAnalysisResult(randomResult);
+      const compressedImage = await compressImageDataUrl(imageDataUrl);
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 50000);
+      let response: Response;
+      try {
+        response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: userEmail,
+            imageDataUrl: compressedImage,
+            mode
+          }),
+          signal: controller.signal
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || '食物识别失败，请稍后重试。');
+      }
+
+      setAnalysisResult(result as AnalysisResult);
+    } catch (error) {
+      console.error(error);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setAnalysisError('识别超时，请换一张更清晰的照片重试。');
+      } else {
+        setAnalysisError(error instanceof Error ? error.message : '食物识别失败，请稍后重试。');
+      }
+    } finally {
       setIsAnalyzing(false);
-    }, 1500);
+    }
   };
 
   const addAnalysisToToday = () => {
@@ -215,13 +224,16 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
       cookingTechnique: analysisResult.cookingTechnique,
       cookingMethod: analysisResult.cookingMethod,
       recommendation: analysisResult.recommendation,
-      summary: config.hint,
-      reasons: [
-        config.hint,
-        analysisResult.riskTags.length > 0
-          ? `主要标签：${analysisResult.riskTags.join('、')}`
-          : '暂未识别到明显风险标签'
-      ],
+      summary: analysisResult.summary || config.hint,
+      reasons:
+        analysisResult.reasons && analysisResult.reasons.length > 0
+          ? analysisResult.reasons
+          : [
+              config.hint,
+              analysisResult.riskTags.length > 0
+                ? `主要标签：${analysisResult.riskTags.join('、')}`
+                : '暂未识别到明显风险标签'
+            ],
       tags: analysisResult.riskTags.length > 0 ? analysisResult.riskTags : ['清淡']
     });
 
@@ -266,9 +278,9 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
       {showCamera && (
         <CameraRecognition
           onClose={() => setShowCamera(false)}
-          onCaptured={(imageDataUrl) => {
+          onCaptured={(imageDataUrl, mode) => {
             setShowCamera(false);
-            mockAnalysis(imageDataUrl);
+            analyzeImage(imageDataUrl, mode);
           }}
         />
       )}
@@ -378,6 +390,12 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
           </button>
         </Card>
 
+        {analysisError && (
+          <Card className="border-[#FECACA] bg-[#FEF2F2] p-4 text-sm text-[#B91C1C]">
+            {analysisError}
+          </Card>
+        )}
+
         {isAnalyzing && <LoadingAnalysis />}
 
         {analysisResult && !isAnalyzing && (
@@ -387,7 +405,15 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
                 <p className="text-sm text-[#6B7280]">即时分析结果</p>
                 <h3 className="mt-1 text-xl font-semibold text-[#111827]">{analysisResult.foodName}</h3>
               </div>
-              <Badge className="bg-[#FFF7E6] text-[#B7791F] border-[#FFD88A]">待确认</Badge>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-[#FFF7E6] text-[#B7791F] border-[#FFD88A]">待确认</Badge>
+                <button
+                  onClick={() => setAnalysisResult(null)}
+                  className="rounded-full px-2 py-1 text-xs font-medium text-[#6B7280] hover:bg-[#F3F4F6]"
+                >
+                  关闭
+                </button>
+              </div>
             </div>
 
             <div className="mb-4 grid grid-cols-4 gap-2">
@@ -413,7 +439,7 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
                   </span>
                   <div>
                     <p className="font-semibold">{config.label}</p>
-                    <p className="mt-1 text-sm leading-6 opacity-90">{config.hint}</p>
+                    <p className="mt-1 text-sm leading-6 opacity-90">{analysisResult.summary || config.hint}</p>
                   </div>
                 </div>
               );

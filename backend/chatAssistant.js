@@ -101,12 +101,13 @@ const pickRuleReply = (message, context) => {
   return `我记住了。结合你最近吃过 ${latestMeal}，以及本周${context.weekSummary.title}，建议你下一餐优先清淡、少酱汁，并补一份蔬菜或优质蛋白。你也可以继续描述具体菜品，我帮你看怎么搭配更稳。`;
 };
 
-const callOpenAI = async ({ systemPrompt, history, message }) => {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+const { getLlmConfig, buildLlmHeaders } = require('./llmConfig');
 
-  const baseUrl = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
-  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const callLlm = async ({ systemPrompt, history, message }) => {
+  const config = getLlmConfig();
+  if (!config) return null;
+
+  const { apiKey, baseUrl, model } = config;
 
   const payload = {
     model,
@@ -120,10 +121,7 @@ const callOpenAI = async ({ systemPrompt, history, message }) => {
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: buildLlmHeaders(apiKey, baseUrl),
     body: JSON.stringify(payload),
   });
 
@@ -140,7 +138,7 @@ const generateAssistantReply = async ({ message, history, context }) => {
   const systemPrompt = buildSystemPrompt(context);
 
   try {
-    const llmReply = await callOpenAI({ systemPrompt, history, message });
+    const llmReply = await callLlm({ systemPrompt, history, message });
     if (llmReply) return llmReply;
   } catch (error) {
     console.error('LLM chat fallback to rules:', error.message);

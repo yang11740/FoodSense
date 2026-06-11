@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, CirclePlus, Loader2, Mic, SendHorizontal } from 'lucide-react';
 import ChatThread from '@/app/components/ChatThread';
+import { useSpeechRecognition } from '@/app/hooks/useSpeechRecognition';
 import type { ChatMessage } from '@/app/types/chat';
 
 interface MascotChatProps {
@@ -16,6 +17,27 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const appendVoiceText = useCallback((text: string) => {
+    setInputValue((current) => {
+      const spacer = current && !current.endsWith(' ') ? ' ' : '';
+      return `${current}${spacer}${text}`;
+    });
+    inputRef.current?.focus();
+  }, []);
+
+  const {
+    isSupported: isSpeechSupported,
+    isListening,
+    interimTranscript,
+    error: speechError,
+    toggleListening,
+    clearError: clearSpeechError
+  } = useSpeechRecognition({
+    lang: 'zh-CN',
+    onFinalResult: appendVoiceText
+  });
 
   useEffect(() => {
     if (!userEmail) {
@@ -58,13 +80,14 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSending]);
 
-  const handleSend = async () => {
-    const text = inputValue.trim();
+  const handleSend = async (overrideText?: string) => {
+    const text = (overrideText ?? inputValue).trim();
     if (!text || !userEmail || isSending) return;
 
     setInputValue('');
     setIsSending(true);
     setError('');
+    clearSpeechError();
 
     const optimisticMessage: ChatMessage = {
       id: `pending-user-${Date.now()}`,
@@ -101,6 +124,12 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
     }
   };
 
+  const handleMicClick = () => {
+    if (!userEmail || isSending) return;
+    clearSpeechError();
+    toggleListening();
+  };
+
   const visibleMessages =
     messages.length > 0
       ? messages
@@ -114,6 +143,14 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
             createdAt: new Date().toISOString()
           }
         ];
+
+  const inputPlaceholder = isListening
+    ? '正在听你说话...'
+    : userEmail
+      ? '输入或语音记录饮食和运动'
+      : '请先登录后再聊天';
+
+  const displayValue = isListening && interimTranscript ? `${inputValue}${inputValue ? ' ' : ''}${interimTranscript}` : inputValue;
 
   return (
     <div className="relative h-full overflow-hidden bg-[#EAF9E5] text-[#17221B]">
@@ -167,13 +204,30 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
         </main>
 
         <footer className="shrink-0 rounded-t-[34px] bg-[#D3F9D6]/92 px-5 pb-5 pt-5 shadow-[0_-10px_28px_rgba(76,203,99,0.16)] backdrop-blur-md">
-          {error && <p className="mb-3 text-center text-xs font-semibold text-[#B91C1C]">{error}</p>}
+          {(error || speechError) && (
+            <p className="mb-3 text-center text-xs font-semibold text-[#B91C1C]">{error || speechError}</p>
+          )}
+          {isListening && (
+            <p className="mb-3 text-center text-xs font-semibold text-[#15803D]">正在聆听，请开始说话...</p>
+          )}
           <div className="flex items-center gap-3 rounded-full bg-white px-4 py-3 shadow-[0_7px_18px_rgba(15,23,42,0.08)]">
-            <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-[#4E6B5B] text-[#4E6B5B]" aria-label="语音输入">
+            <button
+              type="button"
+              onClick={handleMicClick}
+              disabled={!userEmail || isSending || !isSpeechSupported}
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 transition disabled:opacity-40 ${
+                isListening
+                  ? 'border-[#EF4444] bg-[#FEF2F2] text-[#EF4444] animate-pulse'
+                  : 'border-[#4E6B5B] text-[#4E6B5B]'
+              }`}
+              aria-label={isListening ? '停止语音输入' : '语音输入'}
+              title={isSpeechSupported ? '点击开始语音输入' : '当前浏览器不支持语音输入'}
+            >
               <Mic className="h-6 w-6" strokeWidth={2} />
             </button>
             <input
-              value={inputValue}
+              ref={inputRef}
+              value={displayValue}
               onChange={(event) => setInputValue(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
@@ -181,13 +235,14 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
                   handleSend();
                 }
               }}
-              disabled={!userEmail || isSending}
+              disabled={!userEmail || isSending || isListening}
               className="min-w-0 flex-1 bg-transparent text-[17px] font-semibold text-[#17221B] outline-none placeholder:text-[#A1AAA4] disabled:opacity-60"
-              placeholder={userEmail ? '输入对话记录饮食和运动' : '请先登录后再聊天'}
+              placeholder={inputPlaceholder}
             />
             <button
-              onClick={handleSend}
-              disabled={!userEmail || !inputValue.trim() || isSending}
+              type="button"
+              onClick={() => handleSend()}
+              disabled={!userEmail || !inputValue.trim() || isSending || isListening}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#4E6B5B] disabled:opacity-40"
               aria-label="发送"
             >
@@ -197,7 +252,9 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
               <CirclePlus className="h-8 w-8" strokeWidth={1.9} />
             </button>
           </div>
-          <p className="mt-3 text-center text-xs font-semibold text-[#8DA293]">内容由智能助手生成，请结合自身情况参考</p>
+          <p className="mt-3 text-center text-xs font-semibold text-[#8DA293]">
+            {isSpeechSupported ? '支持语音输入，识别后可编辑再发送' : '内容由智能助手生成，请结合自身情况参考'}
+          </p>
         </footer>
       </div>
     </div>
