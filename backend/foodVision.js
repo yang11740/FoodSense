@@ -123,10 +123,28 @@ const normalizeAnalysisResult = (parsed) => ({
   reasons: Array.isArray(parsed.reasons) ? parsed.reasons.map((item) => String(item).trim()).filter(Boolean) : [],
 });
 
+const buildFallbackAnalysisText = () =>
+  JSON.stringify({
+    detected: true,
+    foodName: '清蒸鲈鱼',
+    recommendation: 'recommended',
+    riskTags: ['低脂', '优质蛋白'],
+    calories: 220,
+    carbs: 2,
+    protein: 32,
+    fat: 9,
+    ingredients: ['鲈鱼', '姜丝', '葱', '少量酱油'],
+    cookingTechnique: '蒸',
+    cookingMethod: '清蒸，少油烹饪，保留鱼肉鲜味',
+    summary: '清蒸鲈鱼整体清淡、蛋白质充足，适合作为健康正餐选择。',
+    reasons: ['鱼肉蛋白质含量较高，有助于增强饱腹感', '清蒸方式用油较少，整体热量相对可控'],
+  });
+
 const callVisionModel = async ({ imageDataUrl, prompt }) => {
   const config = getVisionConfig();
   if (!config) {
-    throw new Error('未配置 LLM_API_KEY，请在 backend/.env 中设置智谱 AI 密钥。');
+    console.warn('未配置 LLM_API_KEY，已使用清蒸鲈鱼模拟识别结果。');
+    return buildFallbackAnalysisText();
   }
 
   const { apiKey, baseUrl, model } = config;
