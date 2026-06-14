@@ -126,24 +126,24 @@ const normalizeAnalysisResult = (parsed) => ({
 const buildFallbackAnalysisText = () =>
   JSON.stringify({
     detected: true,
-    foodName: '清蒸鲈鱼',
-    recommendation: 'recommended',
-    riskTags: ['低脂', '优质蛋白'],
-    calories: 220,
-    carbs: 2,
-    protein: 32,
-    fat: 9,
-    ingredients: ['鲈鱼', '姜丝', '葱', '少量酱油'],
-    cookingTechnique: '蒸',
-    cookingMethod: '清蒸，少油烹饪，保留鱼肉鲜味',
-    summary: '清蒸鲈鱼整体清淡、蛋白质充足，适合作为健康正餐选择。',
-    reasons: ['鱼肉蛋白质含量较高，有助于增强饱腹感', '清蒸方式用油较少，整体热量相对可控'],
+    foodName: '红烧牛肉面',
+    recommendation: 'caution',
+    riskTags: ['高盐', '高热量'],
+    calories: 680,
+    carbs: 86,
+    protein: 28,
+    fat: 24,
+    ingredients: ['牛肉', '面条', '红烧汤底', '青菜', '葱花'],
+    cookingTechnique: '红烧',
+    cookingMethod: '牛肉红烧后搭配面条和汤底，口味较浓',
+    summary: '红烧牛肉面能提供较强饱腹感，但汤底盐分和整体热量偏高，建议适量食用。',
+    reasons: ['面条带来较高碳水摄入，适合控制份量', '红烧汤底通常盐分较高，建议少喝汤'],
   });
 
 const callVisionModel = async ({ imageDataUrl, prompt }) => {
   const config = getVisionConfig();
   if (!config) {
-    console.warn('未配置 LLM_API_KEY，已使用清蒸鲈鱼模拟识别结果。');
+    console.warn('未配置 LLM_API_KEY，已使用红烧牛肉面模拟识别结果。');
     return buildFallbackAnalysisText();
   }
 
