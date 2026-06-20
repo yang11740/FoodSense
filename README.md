@@ -5,7 +5,7 @@ FoodSense 是一个 AI 饮食健康助手，用来记录饮食、识别食物图
 ## 📸 Demo
 
 <p align="center">
-  <img src="./demo.png" alt="FoodSense Demo" width="720" />
+  <img src="./demo.png" alt="FoodSense Demo" width="240" />
 </p>
 
 ## ✨ 主要功能
