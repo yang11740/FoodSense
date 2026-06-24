@@ -17,6 +17,7 @@ import type { NutritionTargets } from '@/app/types/nutrition';
 import type { RecognitionMode } from '@/app/components/CameraRecognition';
 import { compressImageDataUrl } from '@/app/utils/compressImage';
 import { isLikelyBlankImage } from '@/app/utils/imageQuality';
+import { getApiUrl } from '@/app/utils/apiConfig';
 
 interface AnalysisResult {
   foodName: string;
@@ -90,7 +91,7 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
     let cancelled = false;
     const loadTargets = async () => {
       try {
-        const response = await fetch(`/api/nutrition/targets?email=${encodeURIComponent(userEmail)}`);
+        const response = await fetch(getApiUrl(`/api/nutrition/targets?email=${encodeURIComponent(userEmail)}`));
         if (!response.ok) return;
         const targets = (await response.json()) as NutritionTargets;
         if (!cancelled) {
@@ -175,7 +176,7 @@ export default function Home({ onAddRecipeRecord, recipeRecords, userEmail, user
       const timeoutId = window.setTimeout(() => controller.abort(), 50000);
       let response: Response;
       try {
-        response = await fetch('/api/analyze', {
+        response = await fetch(getApiUrl('/api/analyze'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

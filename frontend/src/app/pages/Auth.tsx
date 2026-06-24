@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Mail, Lock, User, Sparkles, ShieldCheck } from 'lucide-react';
+import { getApiUrl } from '@/app/utils/apiConfig';
 
 interface AuthProps {
   onLogin: (user: { name: string; email: string }) => void;
@@ -32,7 +33,7 @@ export default function Auth({ onLogin, onRegister }: AuthProps) {
       : { email, password };
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)

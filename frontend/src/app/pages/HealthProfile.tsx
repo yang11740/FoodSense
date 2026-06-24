@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/app/components/ui/dialog';
+import { getApiUrl } from '@/app/utils/apiConfig';
 
 type ProfileData = {
   goal: string;
@@ -119,7 +120,7 @@ export default function HealthProfile({
       setIsLoadingInsights(true);
       setInsightsError('');
       try {
-        const response = await fetch(`/api/health/profile?email=${encodeURIComponent(user.email)}`);
+        const response = await fetch(getApiUrl(`/api/health/profile?email=${encodeURIComponent(user.email)}`));
         if (!response.ok) {
           throw new Error('加载健康档案失败');
         }

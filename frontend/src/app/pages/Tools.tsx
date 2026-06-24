@@ -39,6 +39,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/app/components/ui/dialog';
+import { getApiUrl } from '@/app/utils/apiConfig';
 
 type HealthSection = 'overview' | 'weekly' | 'risk' | 'reminders' | 'goals' | 'privacy';
 
@@ -120,7 +121,7 @@ export default function Tools({ userEmail, recipeRecordCount = 0, initialSection
       setIsLoading(true);
       setLoadError('');
       try {
-        const response = await fetch(`/api/health/summary?email=${encodeURIComponent(userEmail)}`);
+        const response = await fetch(getApiUrl(`/api/health/summary?email=${encodeURIComponent(userEmail)}`));
         if (!response.ok) {
           throw new Error('加载健康数据失败');
         }
@@ -155,7 +156,7 @@ export default function Tools({ userEmail, recipeRecordCount = 0, initialSection
     let cancelled = false;
     const loadReminderSettings = async () => {
       try {
-        const response = await fetch(`/api/reminders/settings?email=${encodeURIComponent(userEmail)}`);
+        const response = await fetch(getApiUrl(`/api/reminders/settings?email=${encodeURIComponent(userEmail)}`));
         if (!response.ok) return;
         const settings = (await response.json()) as ReminderSettings;
         if (!cancelled) {
@@ -203,7 +204,7 @@ export default function Tools({ userEmail, recipeRecordCount = 0, initialSection
     setIsSavingReminderSettings(true);
 
     try {
-      const response = await fetch('/api/reminders/settings', {
+      const response = await fetch(getApiUrl('/api/reminders/settings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail, settings: nextSettings })

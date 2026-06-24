@@ -3,6 +3,7 @@ import { ArrowLeft, CirclePlus, Loader2, Mic, SendHorizontal } from 'lucide-reac
 import ChatThread from '@/app/components/ChatThread';
 import { useSpeechRecognition } from '@/app/hooks/useSpeechRecognition';
 import type { ChatMessage } from '@/app/types/chat';
+import { getApiUrl } from '@/app/utils/apiConfig';
 
 interface MascotChatProps {
   userEmail?: string | null;
@@ -50,7 +51,7 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
       setIsLoading(true);
       setError('');
       try {
-        const response = await fetch(`/api/chat/messages?email=${encodeURIComponent(userEmail)}`);
+        const response = await fetch(getApiUrl(`/api/chat/messages?email=${encodeURIComponent(userEmail)}`));
         if (!response.ok) {
           throw new Error('加载聊天记录失败');
         }
@@ -98,7 +99,7 @@ export default function MascotChat({ userEmail, userName, onBack }: MascotChatPr
     setMessages((current) => [...current, optimisticMessage]);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail, message: text })

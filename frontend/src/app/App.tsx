@@ -13,6 +13,7 @@ import Onboarding from '@/app/pages/Onboarding';
 import WelcomeScreen from '@/app/components/WelcomeScreen';
 import type { ChatMessage } from '@/app/types/chat';
 import type { RecipeRecord } from '@/app/types/food';
+import { getApiUrl } from '@/app/utils/apiConfig';
 
 type Page = 'auth' | 'onboarding' | 'home' | 'analysis' | 'chat' | 'tools' | 'profile' | 'report' | 'settings' | 'preferences' | 'goals';
 
@@ -127,7 +128,7 @@ export default function App() {
   }) => {
     if (!user) return;
     try {
-      await fetch('/api/profile', {
+      await fetch(getApiUrl('/api/profile'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, ...profile })
@@ -139,7 +140,7 @@ export default function App() {
 
   const loadUserProfile = async (email: string) => {
     try {
-      const response = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+      const response = await fetch(getApiUrl(`/api/profile?email=${encodeURIComponent(email)}`));
       if (!response.ok) {
         setUserProfile(null);
         return;
@@ -184,12 +185,12 @@ export default function App() {
 
     try {
       await Promise.all([
-        fetch('/api/user', {
+        fetch(getApiUrl('/api/user'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: user.email, name: nextProfile.name })
         }),
-        fetch('/api/profile', {
+        fetch(getApiUrl('/api/profile'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: user.email, ...profilePayload })
@@ -202,7 +203,7 @@ export default function App() {
 
   const loadRecipeRecords = async (email: string) => {
     try {
-      const response = await fetch(`/api/recipes?email=${encodeURIComponent(email)}`);
+      const response = await fetch(getApiUrl(`/api/recipes?email=${encodeURIComponent(email)}`));
       if (!response.ok) {
         setRecipeRecords([]);
         return;
@@ -211,7 +212,7 @@ export default function App() {
       const records = await response.json();
       setRecipeRecords(Array.isArray(records) ? records : []);
     } catch (error) {
-      console.error('鍔犺浇椋熻氨璁板綍澶辫触', error);
+      console.error('加载食谱记录失败', error);
       setRecipeRecords([]);
     }
   };
@@ -222,25 +223,25 @@ export default function App() {
     setRecipeRecords((records) => [record, ...records]);
 
     try {
-      const response = await fetch('/api/recipes', {
+      const response = await fetch(getApiUrl('/api/recipes'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, record })
       });
 
       if (!response.ok) {
-        console.error('淇濆瓨椋熻氨璁板綍澶辫触', await response.json());
+        console.error('保存食谱记录失败', await response.json());
         setRecipeRecords((records) => records.filter((item) => item.id !== record.id));
       }
     } catch (error) {
-      console.error('淇濆瓨椋熻氨璁板綍澶辫触', error);
+      console.error('保存食谱记录失败', error);
       setRecipeRecords((records) => records.filter((item) => item.id !== record.id));
     }
   };
 
   const loadHealthGoals = async (email: string) => {
     try {
-      const response = await fetch(`/api/goals?email=${encodeURIComponent(email)}`);
+      const response = await fetch(getApiUrl(`/api/goals?email=${encodeURIComponent(email)}`));
       if (!response.ok) {
         setHealthGoals([]);
         return;
@@ -249,7 +250,7 @@ export default function App() {
       const goals = await response.json();
       setHealthGoals(Array.isArray(goals) ? goals : []);
     } catch (error) {
-      console.error('鍔犺浇鍋ュ悍鐩爣澶辫触', error);
+      console.error('加载健康目标失败', error);
       setHealthGoals([]);
     }
   };
@@ -262,7 +263,7 @@ export default function App() {
     setHealthGoals((current) => [...current, value]);
 
     try {
-      const response = await fetch('/api/goals', {
+      const response = await fetch(getApiUrl('/api/goals'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, goal: value })
@@ -272,7 +273,7 @@ export default function App() {
         setHealthGoals((current) => current.filter((item) => item !== value));
       }
     } catch (error) {
-      console.error('淇濆瓨鍋ュ悍鐩爣澶辫触', error);
+      console.error('保存健康目标失败', error);
       setHealthGoals((current) => current.filter((item) => item !== value));
     }
   };
@@ -282,7 +283,7 @@ export default function App() {
     setHealthGoals((current) => current.filter((item) => item !== goal));
 
     try {
-      const response = await fetch(`/api/goals?email=${encodeURIComponent(user.email)}&goal=${encodeURIComponent(goal)}`, {
+      const response = await fetch(getApiUrl(`/api/goals?email=${encodeURIComponent(user.email)}&goal=${encodeURIComponent(goal)}`), {
         method: 'DELETE'
       });
 
@@ -290,14 +291,14 @@ export default function App() {
         setHealthGoals((current) => current.includes(goal) ? current : [...current, goal]);
       }
     } catch (error) {
-      console.error('鍒犻櫎鍋ュ悍鐩爣澶辫触', error);
+      console.error('删除健康目标失败', error);
       setHealthGoals((current) => current.includes(goal) ? current : [...current, goal]);
     }
   };
 
   const loadPreferences = async (email: string) => {
     try {
-      const response = await fetch(`/api/preferences?email=${encodeURIComponent(email)}`);
+      const response = await fetch(getApiUrl(`/api/preferences?email=${encodeURIComponent(email)}`));
       if (!response.ok) {
         setPreferences([]);
         return;
@@ -306,7 +307,7 @@ export default function App() {
       const loadedPreferences = await response.json();
       setPreferences(Array.isArray(loadedPreferences) ? loadedPreferences : []);
     } catch (error) {
-      console.error('鍔犺浇楗鍋忓ソ澶辫触', error);
+      console.error('加载饮食偏好失败', error);
       setPreferences([]);
     }
   };
@@ -319,7 +320,7 @@ export default function App() {
     setPreferences((current) => [...current, value]);
 
     try {
-      const response = await fetch('/api/preferences', {
+      const response = await fetch(getApiUrl('/api/preferences'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, preference: value })
@@ -329,7 +330,7 @@ export default function App() {
         setPreferences((current) => current.filter((item) => item !== value));
       }
     } catch (error) {
-      console.error('淇濆瓨楗鍋忓ソ澶辫触', error);
+      console.error('保存饮食偏好失败', error);
       setPreferences((current) => current.filter((item) => item !== value));
     }
   };
@@ -340,7 +341,7 @@ export default function App() {
 
     try {
       const response = await fetch(
-        `/api/preferences?email=${encodeURIComponent(user.email)}&preference=${encodeURIComponent(preference)}`,
+        getApiUrl(`/api/preferences?email=${encodeURIComponent(user.email)}&preference=${encodeURIComponent(preference)}`),
         { method: 'DELETE' }
       );
 
@@ -348,7 +349,7 @@ export default function App() {
         setPreferences((current) => current.includes(preference) ? current : [...current, preference]);
       }
     } catch (error) {
-      console.error('鍒犻櫎楗鍋忓ソ澶辫触', error);
+      console.error('删除饮食偏好失败', error);
       setPreferences((current) => current.includes(preference) ? current : [...current, preference]);
     }
   };
